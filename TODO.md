@@ -13,8 +13,9 @@
 
 ## External verification still required
 
-- [ ] Refresh expired Cloudflare authentication, provision resources, and verify the deployed Worker.
+- [x] Refresh Cloudflare authentication, provision resources, and verify deployed hosting, authentication, storage, and MCP.
+- [x] Configure verified GitHub Actions releases and enforce conservative R2 usage budgets.
 - [x] Verify actual PayPal Sandbox authentication, saved-wallet setup initiation, and order creation.
 - [x] Complete Sandbox buyer wallet authorization and verify capture records for both demo purchases.
 
-The default local setup simulates payments. The configured local workspace now uses PayPal Sandbox; the official MCP demo completed a saved-wallet $0.20 DataPulse purchase and the dashboard-approved $3.00 SecureScan purchase with a completed queued job. Both captures were independently verified through PayPal. The live Cloudflare deployment remains to be verified.
+The default local setup simulates payments. The configured local workspace now uses PayPal Sandbox; the official MCP demo completed a saved-wallet $0.20 DataPulse purchase and the dashboard-approved $3.00 SecureScan purchase with a completed queued job. Both captures were independently verified through PayPal. The hosted Cloudflare app passed authentication, storage, catalog, and MCP checks; remote PayPal capture and paid Queue execution remain separate end-to-end checks.

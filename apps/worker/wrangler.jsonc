@@ -2,6 +2,8 @@
   "$schema": "../../node_modules/wrangler/config-schema.json",
   "name": "capora",
   "account_id": "fbd57977681b3edb10a9e2bb8ea4d0b4",
+  "workers_dev": true,
+  "preview_urls": false,
   "main": "src/index.ts",
   "compatibility_date": "2026-10-03",
   "compatibility_flags": ["nodejs_compat"],

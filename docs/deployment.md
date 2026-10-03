@@ -13,6 +13,8 @@ Capora deploys as one Worker with static web assets, D1, R2, a queue producer/co
 
 All application hosting and storage run on Cloudflare. Payment processing remains an external PayPal Sandbox integration.
 
+The configured workspace is [https://capora.anirudh-makuluri.workers.dev](https://capora.anirudh-makuluri.workers.dev), bootstrapped on October 3, 2026. D1, private R2, Queues, Worker secrets, and the GitHub `production` environment are already configured. The steps below document setup for a new account and ongoing operation; do not recreate the existing resources. `workers.dev` is enabled and preview URLs are disabled.
+
 Keep Workers on the **Free** plan. Capora enforces R2 budgets before every app storage call: 100 MB of lifetime byte reservations, 1,000 writes and 10,000 reads per UTC day, and 256 KiB per object. Exhaustion pauses storage instead of increasing spend. See [usage safeguards](usage-limits.md) for the owner usage endpoint, kill switch, account-wide limitations, and supplementary $1 projected-spend alert.
 
 ## 1. Authenticate and provision
@@ -126,4 +128,4 @@ Sources: [Worker static assets](https://developers.cloudflare.com/workers/static
 
 Scheduled recovery runs every five minutes in Cloudflare. Wrangler does not auto-trigger cron locally; invoke the local scheduled handler if testing recovery. Use `wrangler tail` for structured events/correlation IDs without payloads or credentials.
 
-Do not describe the deployment or Sandbox transactions as verified until these checks succeed. An expired Cloudflare login or missing PayPal credentials is an external setup requirement, not proof that a configured integration has run.
+Record hosting checks separately from payment checks. The current deployment passed hosting, authentication, catalog, storage-budget, and MCP discovery checks; actual Sandbox captures and paid Queue execution were verified locally and have not been repeated remotely. See [the verification record](verification.md).
