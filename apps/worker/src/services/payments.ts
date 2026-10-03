@@ -51,7 +51,7 @@ export class PayPalSandbox {
     private env: Env,
     private fetcher: typeof fetch = fetch.bind(globalThis),
   ) {}
-  private async accessToken(): Promise<string> {
+  private async accessToken(ignoreCache = false): Promise<string> {
     if (this.env.PAYPAL_ENVIRONMENT !== 'sandbox')
       throw new DomainError('SANDBOX_ONLY', 'Capora only supports PayPal Sandbox.', 503);
     if (!this.env.PAYPAL_CLIENT_ID || !this.env.PAYPAL_CLIENT_SECRET)
@@ -68,7 +68,7 @@ export class PayPalSandbox {
           Authorization: `Basic ${btoa(`${this.env.PAYPAL_CLIENT_ID}:${this.env.PAYPAL_CLIENT_SECRET}`)}`,
           'Content-Type': 'application/x-www-form-urlencoded',
         },
-        body: 'grant_type=client_credentials',
+        body: `grant_type=client_credentials${ignoreCache ? '&ignoreCache=true' : ''}`,
         signal: AbortSignal.timeout(15_000),
       });
     } catch {
@@ -79,25 +79,33 @@ export class PayPalSandbox {
     return body.access_token;
   }
   async request(path: string, method: string, body?: unknown, requestId?: string): Promise<unknown> {
-    const accessToken = await this.accessToken();
-    let response: Response;
-    try {
-      response = await this.fetcher(`${this.base}${path}`, {
-        method,
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-          Prefer: 'return=representation',
-          ...(requestId ? { 'PayPal-Request-Id': (await hash(requestId)).slice(0, 32) } : {}),
-        },
-        ...(body ? { body: JSON.stringify(body) } : {}),
-        signal: AbortSignal.timeout(20_000),
-      });
-    } catch {
-      throw new PaymentError(
-        'PayPal did not confirm the outcome. Funds remain reserved; reconcile this purchase.',
-        true,
-      );
+    const idempotencyKey = requestId ? (await hash(requestId)).slice(0, 32) : undefined;
+    const send = async (accessToken: string): Promise<Response> => {
+      try {
+        return await this.fetcher(`${this.base}${path}`, {
+          method,
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+            Prefer: 'return=representation',
+            ...(idempotencyKey ? { 'PayPal-Request-Id': idempotencyKey } : {}),
+          },
+          ...(body ? { body: JSON.stringify(body) } : {}),
+          signal: AbortSignal.timeout(20_000),
+        });
+      } catch {
+        throw new PaymentError(
+          'PayPal did not confirm the outcome. Funds remain reserved; reconcile this purchase.',
+          true,
+        );
+      }
+    };
+    let response = await send(await this.accessToken());
+    if (response.status === 403) {
+      // PayPal can reuse a token issued before an app permission was enabled.
+      // An authorization rejection has no payment effect; refresh once using the same request ID.
+      await response.body?.cancel();
+      response = await send(await this.accessToken(true));
     }
     if (!response.ok) {
       console.error(

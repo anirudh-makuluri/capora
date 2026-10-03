@@ -37,6 +37,7 @@ Capora is the single Sandbox merchant in this MVP. It records provider-attribute
 - `CANNOT_PAY_SELF`: the browser must use a Personal Sandbox buyer distinct from the Business Sandbox merchant associated with the REST app. Sign out of a cached merchant session before retrying.
 - `UNSUPPORTED_PAYEE_CURRENCY`: Capora prices and verifies payments in USD. The Business Sandbox merchant must accept USD. Review its payment receiving preferences and supported currencies, or use a USD-capable Sandbox merchant/app. Changing API credentials alone does not authorize a buyer wallet; reconnect the wallet after changing the merchant.
 - HTTP 403 `NOT_AUTHORIZED` from `/v3/vault/setup-tokens`: ordinary Orders checkout can work while wallet saving is unavailable. Check the app's Vault / Save payment methods permission and merchant eligibility. Successful OAuth or checkout alone does not prove vaulting access.
+- After enabling a permission, PayPal can reuse an access token issued with older scopes. The adapter retries a definite HTTP 403 once after requesting OAuth with `ignoreCache=true`, keeping the same payment body and idempotency key. A second rejection remains an error. This refresh restored wallet access for the verified US Sandbox app; it does not grant permissions that are disabled on the app.
 - A generic error in the saved-wallet authorization page does not prove that a wallet was connected. Capora only marks billing connected after exchanging an approved setup token successfully.
 
 See PayPal's [unsupported currency explanation](https://developer.paypal.com/api/errors/unsupported-payee-currency/) and [payment receiving preferences](https://www.paypal.com/au/cshelp/article/what-are-payment-receiving-preferences-and-how-can-i-set-them-help536).
@@ -44,6 +45,7 @@ See PayPal's [unsupported currency explanation](https://developer.paypal.com/api
 ### Payment retries
 
 - Create/capture requests each have a separate, stable, 32-character `PayPal-Request-Id` derived from the purchase ID.
+- A definite authorization rejection may be retried once with refreshed permissions; uncertain network/payment outcomes are never retried by this mechanism.
 - A D1 lease serializes payment operations. Other callers see the pending purchase while work is active.
 - Credential/configuration errors before an order can exist fail the purchase and release its reservation.
 - Network errors, unreadable responses, or errors involving an existing order preserve the `payment_pending` reservation. Reconcile rather than guessing the outcome.

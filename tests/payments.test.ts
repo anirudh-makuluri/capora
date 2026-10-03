@@ -56,6 +56,39 @@ describe('PayPal Sandbox adapter', () => {
     await expect(
       new PayPalSandbox({ ...env, PAYPAL_ENVIRONMENT: 'live' }).createOrder('p', 20, null),
     ).rejects.toMatchObject({ code: 'SANDBOX_ONLY' }));
+  it('refreshes stale permissions once after a 403 and preserves the payment request', async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ access_token: 'old-scope' })))
+      .mockResolvedValueOnce(new Response('{}', { status: 403 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ access_token: 'new-scope' })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ id: 'ORDER-TEST', status: 'APPROVED' })));
+    expect((await new PayPalSandbox(env, fetcher).createOrder('purchase-test', 20, null)).id).toBe(
+      'ORDER-TEST',
+    );
+    expect(fetcher).toHaveBeenCalledTimes(4);
+    const [, firstPayment, refreshedAuth, secondPayment] = fetcher.mock.calls;
+    expect(String(refreshedAuth[1]?.body)).toContain('ignoreCache=true');
+    expect(new Headers(firstPayment[1]?.headers).get('Authorization')).toBe('Bearer old-scope');
+    expect(new Headers(secondPayment[1]?.headers).get('Authorization')).toBe('Bearer new-scope');
+    expect(secondPayment[0]).toBe(firstPayment[0]);
+    expect(secondPayment[1]?.body).toBe(firstPayment[1]?.body);
+    expect(new Headers(secondPayment[1]?.headers).get('PayPal-Request-Id')).toBe(
+      new Headers(firstPayment[1]?.headers).get('PayPal-Request-Id'),
+    );
+  });
+  it('stops after a refreshed token is also rejected instead of retrying indefinitely', async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ access_token: 'old-scope' })))
+      .mockResolvedValueOnce(new Response('{}', { status: 403 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ access_token: 'new-scope' })))
+      .mockResolvedValueOnce(new Response('{}', { status: 403 }));
+    await expect(
+      new PayPalSandbox(env, fetcher).createOrder('purchase-test', 20, null),
+    ).rejects.toMatchObject({ code: 'PAYMENT_FAILED', uncertain: false });
+    expect(fetcher).toHaveBeenCalledTimes(4);
+  });
   it('keeps an uncertain network result pending', async () => {
     const fetcher = vi
       .fn<typeof fetch>()
