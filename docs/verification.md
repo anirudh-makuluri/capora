@@ -19,10 +19,11 @@ The tests include concurrent duplicate purchase/payment attempts, competing purc
 
 ## Required external checks
 
-Cloudflare authentication was expired and could not refresh noninteractively. After Sandbox credentials were supplied, actual Sandbox OAuth authentication, saved-wallet setup-token creation, and a $0.20 Orders API purchase were verified through the running Worker. Sandbox buyer login also succeeded. Checkout then returned `UNSUPPORTED_PAYEE_CURRENCY`: the merchant cannot currently receive the order's USD currency. That purchase remains `payment_pending` without a capture. Therefore:
+Cloudflare authentication was expired and could not refresh noninteractively. Actual Sandbox OAuth, order creation, buyer approval, and a completed $0.20 USD capture have now been verified through the running Worker using separate US Sandbox merchant and buyer accounts. Capora recorded order `7KC69115588725355` and capture `96G346231E3103743`; the paid DataPulse invocation completed and returned its synthetic fixture. The earlier currency-blocked order was cancelled without a capture and its reservation released. Therefore:
 
 - No remote Cloudflare resources were provisioned or deployed.
-- No actual PayPal Sandbox capture or completed saved-wallet authorization has been verified yet.
+- One actual PayPal Sandbox capture and paid invocation are verified. The $3.00 human-approved Sandbox purchase remains to be checked.
+- Saved-wallet setup-token creation worked for the earlier app, but the new US merchant app returns HTTP 403 `NOT_AUTHORIZED` from the Payment Method Tokens API. Completed saved-wallet authorization and autonomous Sandbox purchases remain unverified until that app has vaulting permission.
 - Local `DEMO-` receipts are simulated; mocked PayPal adapter tests check API contracts only.
 - The first GitHub Actions run failed during Linux seeding because the file-path argument contained literal quotes. The fix was pushed in `6778505`; its GitHub Actions rerun passed, including type checking, linting, builds, 48 isolated tests, local seeding, and all three Chromium browser tests.
 - Automated accessibility checks and screenshot review do not establish complete manual accessibility conformance.

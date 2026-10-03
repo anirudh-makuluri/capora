@@ -21,7 +21,7 @@ Capora has two deliberately separate modes:
 
 Ordinary checkout needs buyer interaction. For the $0.20 automatic-purchase demo, establish a buyer-authorized saved Wallet first:
 
-1. Ensure the Sandbox merchant supports PayPal payment-method saving / billing agreement reference transactions. Availability depends on the merchant’s PayPal account configuration.
+1. Enable vaulting for the Sandbox REST app in the Developer Dashboard: select the app, then **Sandbox App Settings → App Feature Options → Accept payments → Advanced options → Vault**. Depending on the dashboard version, this feature may be labeled **Save payment methods**. Ensure the merchant supports PayPal Wallet saving; availability depends on account configuration. See [PayPal's setup instructions](https://developer.paypal.com/api/save-with-purchase/save-payment-methods/).
 2. In My agents, choose **Connect PayPal**.
    Log in with a **Personal Sandbox account**, not your real PayPal account or the merchant's Business Sandbox account. Find the generated email/password under [Sandbox accounts](https://developer.paypal.com/dashboard/accounts) → View/Edit Account. If PayPal opens guest signup and asks for a card, return to login. If a card is required for the test account, use [PayPal's official test cards](https://developer.paypal.com/sandbox-testing/card-testing/), never real card details or arbitrary invented numbers.
 3. Capora creates a Payment Method Tokens v3 setup token with same-origin return/cancel URLs. The human signs in and authorizes the Wallet on PayPal.
@@ -36,6 +36,7 @@ Capora is the single Sandbox merchant in this MVP. It records provider-attribute
 
 - `CANNOT_PAY_SELF`: the browser must use a Personal Sandbox buyer distinct from the Business Sandbox merchant associated with the REST app. Sign out of a cached merchant session before retrying.
 - `UNSUPPORTED_PAYEE_CURRENCY`: Capora prices and verifies payments in USD. The Business Sandbox merchant must accept USD. Review its payment receiving preferences and supported currencies, or use a USD-capable Sandbox merchant/app. Changing API credentials alone does not authorize a buyer wallet; reconnect the wallet after changing the merchant.
+- HTTP 403 `NOT_AUTHORIZED` from `/v3/vault/setup-tokens`: ordinary Orders checkout can work while wallet saving is unavailable. Check the app's Vault / Save payment methods permission and merchant eligibility. Successful OAuth or checkout alone does not prove vaulting access.
 - A generic error in the saved-wallet authorization page does not prove that a wallet was connected. Capora only marks billing connected after exchanging an approved setup token successfully.
 
 See PayPal's [unsupported currency explanation](https://developer.paypal.com/api/errors/unsupported-payee-currency/) and [payment receiving preferences](https://www.paypal.com/au/cshelp/article/what-are-payment-receiving-preferences-and-how-can-i-set-them-help536).

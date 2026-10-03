@@ -17,4 +17,4 @@
 - [x] Verify actual PayPal Sandbox authentication, saved-wallet setup initiation, and order creation.
 - [ ] Complete Sandbox buyer wallet authorization and verify capture records for both demo purchases.
 
-The default local setup simulates payments. The configured local workspace now uses PayPal Sandbox; its verification purchase awaits buyer approval. These external checks are required before claiming the requested live deployment and PayPal definition of done.
+The default local setup simulates payments. The configured local workspace now uses PayPal Sandbox; a $0.20 USD purchase was captured and its DataPulse invocation completed using US Sandbox accounts. Saved-wallet authorization is blocked by the new app's vaulting permission (HTTP 403 `NOT_AUTHORIZED`), and the $3.00 Sandbox purchase remains to be checked. These external checks are required before claiming the requested live deployment and PayPal definition of done.
