@@ -151,4 +151,6 @@ Follow [the deployment guide](docs/deployment.md): authenticate Cloudflare, prov
 
 The GitHub workflow can automatically deploy successful `main` builds after type/lint, integration, and browser checks. Configure the `production` environment's Cloudflare secrets and enable `CLOUDFLARE_DEPLOY_ENABLED` after the first deployment is bootstrapped. Each release applies pending D1 migrations, publishes the frontend/API/MCP together, and runs read-only deployment smoke checks. See the guide for the exact one-time setup; deployment automation is disabled until that setup is complete.
 
+R2 usage is guarded by atomic D1 reservations: 100 MB of total reserved data, 1,000 writes/day, 10,000 reads/day, and 256 KiB/object. Storage calls fail closed at the cutoff. See [usage safeguards](docs/usage-limits.md); these app limits do not cap unrelated account-wide R2 activity.
+
 See [architecture and security decisions](docs/architecture.md) and [provider creation](docs/providers.md). This MVP is a single operator-controlled human workspace, with many agents and providers. It does not implement multi-user signup, live-money billing, escrow, payout settlement, arbitrary code execution, or automatic refunds. Real integrations may need stricter payload-retention controls, stronger human identity, and operator-managed payment reconciliation.

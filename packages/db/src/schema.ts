@@ -240,6 +240,14 @@ export const billingSetups = sqliteTable('billing_setups', {
   status: text('status').notNull(),
   createdAt: text('created_at').notNull(),
 });
+export const resourceUsage = sqliteTable('resource_usage', {
+  resource: text('resource').primaryKey(),
+  usageDay: text('usage_day').notNull().default(''),
+  writes: integer('writes').notNull().default(0),
+  reads: integer('reads').notNull().default(0),
+  reservedBytes: integer('reserved_bytes').notNull().default(0),
+  blocked: integer('blocked', { mode: 'boolean' }).notNull().default(false),
+});
 export const rateLimits = sqliteTable('rate_limits', {
   key: text('key').primaryKey(),
   count: integer('count').notNull(),

@@ -8,6 +8,7 @@ import { validateEndpoint } from '../services/gateway';
 import { id, seal } from '../lib/crypto';
 import { publicCapability } from '../services/catalog';
 import { audit } from '../lib/audit';
+import { writeArtifact } from '../services/storage';
 import type { AppEnv, Env } from '../env';
 
 export const providerRoutes = new Hono<AppEnv>();
@@ -46,9 +47,7 @@ providerRoutes.get('/capabilities', async (c) => {
 providerRoutes.post('/datasets', async (c) => {
   const body = z.object({ data: z.record(z.string(), z.unknown()) }).parse(await c.req.json());
   const key = `datasets/${c.get('userId')}/${id('dataset')}.json`;
-  await c.env.ARTIFACTS.put(key, JSON.stringify(body.data), {
-    httpMetadata: { contentType: 'application/json' },
-  });
+  await writeArtifact(c.env, key, JSON.stringify(body.data));
   return c.json({ key, endpoint: `r2://${key}` }, 201);
 });
 providerRoutes.post('/capabilities', async (c) => {

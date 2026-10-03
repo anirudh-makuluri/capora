@@ -7,6 +7,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { seedCapabilities, outputSchema } from '../scripts/seed-data';
 import type { Purchase, Quote, Invocation, Budget, Job } from '../packages/types/src/index';
+import { R2_BUDGET } from '../packages/config/src/index';
 
 let mf: Miniflare;
 const agentToken = 'cap_test-token-only-for-isolated-integration-tests';
@@ -134,6 +135,11 @@ beforeEach(async () => {
     .run();
   await db.prepare("UPDATE agents SET status='active' WHERE id='agent_test'").run();
   await db.prepare('UPDATE capabilities SET enabled=1,version=1,success_count=0,failure_count=0').run();
+  await db
+    .prepare(
+      "UPDATE resource_usage SET usage_day='',writes=0,reads=0,reserved_bytes=0,blocked=0 WHERE resource='r2'",
+    )
+    .run();
 });
 afterAll(async () => {
   await mf?.dispose();
@@ -343,6 +349,127 @@ describe('Actual Worker, D1, R2, Queues, and MCP integration', () => {
       .first<{ artifact_key: string | null; result: string | null }>();
     expect(stored?.artifact_key).toMatch(/^results\/agent_test\//);
     expect(stored?.result).toBeNull();
+  });
+  it('reserves UTF-8 storage atomically when concurrent uploads reach the retained byte cap', async () => {
+    const db = await mf.getD1Database('DB');
+    const data = { marker: '🌵'.repeat(100) };
+    const bytes = new TextEncoder().encode(JSON.stringify(data)).byteLength;
+    await db
+      .prepare("UPDATE resource_usage SET reserved_bytes=? WHERE resource='r2'")
+      .bind(R2_BUDGET.retainedBytes - bytes)
+      .run();
+    const uploads = await Promise.all(
+      Array.from({ length: 8 }, () => request<{ key: string }>('/providers/datasets', { data })),
+    );
+    expect(uploads.filter((result) => result.status === 201)).toHaveLength(1);
+    expect(uploads.filter((result) => result.status === 503)).toHaveLength(7);
+    expect(
+      await db.prepare("SELECT reserved_bytes,writes FROM resource_usage WHERE resource='r2'").first(),
+    ).toMatchObject({ reserved_bytes: R2_BUDGET.retainedBytes, writes: 1 });
+    expect(uploads.find((result) => result.status === 201)?.data.key).toMatch(/^datasets\/user_test\//);
+  });
+  it('blocks concurrent writes at the daily operation budget', async () => {
+    const db = await mf.getD1Database('DB');
+    await db
+      .prepare("UPDATE resource_usage SET usage_day=?,writes=? WHERE resource='r2'")
+      .bind(new Date().toISOString().slice(0, 10), R2_BUDGET.writesPerDay - 1)
+      .run();
+    const uploads = await Promise.all(
+      Array.from({ length: 8 }, () => request('/providers/datasets', { data: { value: 1 } })),
+    );
+    expect(uploads.filter((result) => result.status === 201)).toHaveLength(1);
+    expect(uploads.filter((result) => result.status === 503)).toHaveLength(7);
+    expect(await db.prepare("SELECT writes FROM resource_usage WHERE resource='r2'").first('writes')).toBe(
+      R2_BUDGET.writesPerDay,
+    );
+  });
+  it('blocks concurrent artifact reads at the daily read budget', async () => {
+    const db = await mf.getD1Database('DB');
+    const data = { value: 'owned' };
+    const dataset = (await request<{ key: string }>('/providers/datasets', { data })).data;
+    const p = (await buy((await quote()).id)).data;
+    const inv = (
+      await request<Invocation>('/agents/agent_test/invocations', {
+        purchase_id: p.id,
+        input: { company: 'Acme Robotics' },
+      })
+    ).data;
+    await db
+      .prepare('UPDATE invocations SET artifact_key=?,result=NULL WHERE id=?')
+      .bind(dataset.key, inv.id)
+      .run();
+    await db
+      .prepare("UPDATE resource_usage SET usage_day=?,reads=? WHERE resource='r2'")
+      .bind(new Date().toISOString().slice(0, 10), R2_BUDGET.readsPerDay - 1)
+      .run();
+    const reads = await Promise.all(
+      Array.from({ length: 8 }, () => request<Invocation>(`/agents/agent_test/invocations/${inv.id}`)),
+    );
+    expect(reads.filter((result) => result.status === 200)).toHaveLength(1);
+    expect(reads.find((result) => result.status === 200)?.data.result).toEqual(data);
+    expect(reads.filter((result) => result.status === 503)).toHaveLength(7);
+    expect(await db.prepare("SELECT reads FROM resource_usage WHERE resource='r2'").first('reads')).toBe(
+      R2_BUDGET.readsPerDay,
+    );
+  });
+  it('resets daily operation counters without resetting retained storage', async () => {
+    const db = await mf.getD1Database('DB');
+    await db
+      .prepare(
+        "UPDATE resource_usage SET usage_day='2000-01-01',writes=?,reads=?,reserved_bytes=42 WHERE resource='r2'",
+      )
+      .bind(R2_BUDGET.writesPerDay, R2_BUDGET.readsPerDay)
+      .run();
+    const data = { value: 1 };
+    expect((await request('/providers/datasets', { data })).status).toBe(201);
+    expect(
+      await db
+        .prepare("SELECT usage_day,writes,reads,reserved_bytes FROM resource_usage WHERE resource='r2'")
+        .first(),
+    ).toMatchObject({
+      usage_day: new Date().toISOString().slice(0, 10),
+      writes: 1,
+      reads: 0,
+      reserved_bytes: 42 + new TextEncoder().encode(JSON.stringify(data)).byteLength,
+    });
+  });
+  it('cannot rewind the budget day and reset already reserved operations', async () => {
+    const db = await mf.getD1Database('DB');
+    await db.prepare("UPDATE resource_usage SET usage_day='9999-01-01',writes=99 WHERE resource='r2'").run();
+    expect((await request('/providers/datasets', { data: { value: 1 } })).status).toBe(503);
+    expect(await db.prepare("SELECT writes FROM resource_usage WHERE resource='r2'").first('writes')).toBe(
+      99,
+    );
+  });
+  it('honors the operator storage kill switch', async () => {
+    const db = await mf.getD1Database('DB');
+    await db.prepare("UPDATE resource_usage SET blocked=1 WHERE resource='r2'").run();
+    expect((await request('/providers/datasets', { data: { value: 1 } })).status).toBe(503);
+    expect(
+      await db.prepare("SELECT writes,reserved_bytes FROM resource_usage WHERE resource='r2'").first(),
+    ).toMatchObject({ writes: 0, reserved_bytes: 0 });
+  });
+  it('shows the owner the enforced storage limits and reservations', async () => {
+    await request('/providers/datasets', { data: { value: 1 } });
+    const usage = await request('/storage/usage');
+    expect(usage.status).toBe(200);
+    expect(usage.data).toMatchObject({
+      day: new Date().toISOString().slice(0, 10),
+      writes: 1,
+      reads: 0,
+      blocked: false,
+      reservedBytes: new TextEncoder().encode(JSON.stringify({ value: 1 })).byteLength,
+      limits: R2_BUDGET,
+    });
+  });
+  it('fails closed if the storage budget row is missing', async () => {
+    const db = await mf.getD1Database('DB');
+    await db.prepare("DELETE FROM resource_usage WHERE resource='r2'").run();
+    try {
+      expect((await request('/providers/datasets', { data: { value: 1 } })).status).toBe(503);
+    } finally {
+      await db.prepare("INSERT INTO resource_usage(resource) VALUES ('r2')").run();
+    }
   });
   it('forbids non-approved and cross-workspace dataset endpoints', async () => {
     const body = {

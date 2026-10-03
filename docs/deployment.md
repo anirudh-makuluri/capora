@@ -13,6 +13,8 @@ Capora deploys as one Worker with static web assets, D1, R2, a queue producer/co
 
 All application hosting and storage run on Cloudflare. Payment processing remains an external PayPal Sandbox integration.
 
+Keep Workers on the **Free** plan. Capora enforces R2 budgets before every app storage call: 100 MB of lifetime byte reservations, 1,000 writes and 10,000 reads per UTC day, and 256 KiB per object. Exhaustion pauses storage instead of increasing spend. See [usage safeguards](usage-limits.md) for the owner usage endpoint, kill switch, account-wide limitations, and supplementary $1 projected-spend alert.
+
 ## 1. Authenticate and provision
 
 Run from the repository root:

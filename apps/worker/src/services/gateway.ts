@@ -4,6 +4,7 @@ import { validatePayload } from '@capora/provider-sdk';
 import { MAX_PAYLOAD_BYTES, PROVIDER_TIMEOUT_MS } from '@capora/config';
 import { unseal } from '../lib/crypto';
 import { demoProviders } from '../providers/demo';
+import { readArtifact } from './storage';
 import type { Env } from '../env';
 
 export function validateEndpoint(
@@ -90,7 +91,7 @@ export async function invokeProvider(
   validateEndpoint(capability.endpoint, env, capability.type === 'dataset');
   let response: Response;
   if (capability.endpoint.startsWith('r2://')) {
-    const object = await env.ARTIFACTS.get(capability.endpoint.slice(5));
+    const object = await readArtifact(env, capability.endpoint.slice(5));
     if (!object) throw new DomainError('PROVIDER_FAILURE', 'Dataset artifact not found.', 502);
     response = new Response(object.body);
   } else if (capability.endpoint.startsWith('demo://')) {

@@ -9,3 +9,9 @@ export const RESERVED_STATUSES = ['pending_approval', 'approved', 'payment_pendi
 export const MAX_PAYLOAD_BYTES = 256 * 1024;
 export const PROVIDER_TIMEOUT_MS = 25_000;
 export const DEFAULT_USER_ID = 'user_demo';
+// Intentionally far below R2's account-wide free allowance. Do not raise without an operator cost review.
+export const R2_BUDGET = {
+  retainedBytes: 100_000_000,
+  writesPerDay: 1_000,
+  readsPerDay: 10_000,
+};

@@ -15,6 +15,13 @@
       "when": 1791012111972,
       "tag": "0001_careful_paibok",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1791063737057,
+      "tag": "0002_bright_tarantula",
+      "breakpoints": true
     }
   ]
 }

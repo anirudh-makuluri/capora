@@ -25,6 +25,7 @@ import {
   type JobMessage,
 } from './services/execution';
 import { getDashboard } from './services/dashboard';
+import { getStorageUsage } from './services/storage';
 import { demoProviders } from './providers/demo';
 import { authRoutes } from './routes/auth';
 import { agentRoutes } from './routes/agents';
@@ -111,6 +112,7 @@ app.use('/api/*', async (c, next) => {
   await next();
 });
 app.get('/api/dashboard', async (c) => c.json(await getDashboard(c.env, c.get('userId'))));
+app.get('/api/storage/usage', async (c) => c.json(await getStorageUsage(c.env)));
 app.route('/api/agents', agentRoutes);
 app.route('/api/providers', providerRoutes);
 app.route('/api/billing', billingRoutes);

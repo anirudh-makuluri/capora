@@ -6,6 +6,7 @@ import { getPurchase } from './commerce';
 import { getCapabilityRecord } from './catalog';
 import { invokeProvider } from './gateway';
 import { audit } from '../lib/audit';
+import { readArtifact, writeArtifact } from './storage';
 import type { Env } from '../env';
 
 export interface JobMessage {
@@ -23,7 +24,7 @@ export async function getInvocation(env: Env, invocationId: string, agentId: str
   const job = await db.select({ id: jobs.id }).from(jobs).where(eq(jobs.invocationId, row.id)).get();
   const result =
     row.artifactKey && row.status === 'completed'
-      ? await (await env.ARTIFACTS.get(row.artifactKey))?.json()
+      ? await (await readArtifact(env, row.artifactKey))?.json()
       : row.result;
   return { ...row, result: result ?? null, jobId: job?.id ?? null };
 }
@@ -129,8 +130,7 @@ export async function executeInvocation(env: Env, invocationId: string) {
     const latencyMs = Date.now() - start;
     const now = new Date().toISOString();
     const artifactKey = serialized.length > 16_000 ? `results/${claimed.agentId}/${invocationId}.json` : null;
-    if (artifactKey)
-      await env.ARTIFACTS.put(artifactKey, serialized, { httpMetadata: { contentType: 'application/json' } });
+    if (artifactKey) await writeArtifact(env, artifactKey, serialized);
     await db.batch([
       db
         .update(invocations)

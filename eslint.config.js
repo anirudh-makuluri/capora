@@ -28,4 +28,19 @@ export default tseslint.config(
     },
     rules: { '@typescript-eslint/no-floating-promises': 'error' },
   },
+  {
+    files: ['apps/worker/src/**/*.ts'],
+    ignores: ['apps/worker/src/services/storage.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            "MemberExpression[property.name='ARTIFACTS'], MemberExpression[property.value='ARTIFACTS']",
+          message:
+            'Use the storage service so every R2 call reserves its usage budget before accessing the bucket.',
+        },
+      ],
+    },
+  },
 );

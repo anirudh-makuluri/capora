@@ -24,7 +24,7 @@ async function checkDeployment() {
     Array.isArray(capabilities) && capabilities.length > 0,
     'Seed the remote marketplace before deployment.',
   );
-  for (const path of ['/api/dashboard', '/api/auth/session', '/mcp']) {
+  for (const path of ['/api/dashboard', '/api/auth/session', '/api/storage/usage', '/mcp']) {
     const response = await get(path);
     assert.equal(response.status, 401, `${path} must require authentication.`);
     assert.match(response.headers.get('content-type') ?? '', /application\/json/);
