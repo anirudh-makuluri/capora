@@ -15,7 +15,7 @@ let credentials: { agentToken: string };
 try {
   credentials = JSON.parse(await readFile(credentialPath, 'utf8'));
 } catch {
-  if (!remote) throw new Error('Run pnpm setup first to create local credentials.');
+  if (!remote) throw new Error('Run pnpm setup:local first to create local credentials.');
   credentials = { agentToken: `cap_${randomBytes(32).toString('base64url')}` };
   await writeFile(credentialPath, JSON.stringify(credentials, null, 2), { mode: 0o600 });
 }
@@ -49,7 +49,7 @@ const result = spawnSync(
     'capora-db',
     remote ? '--remote' : '--local',
     '--file',
-    '"../../.local/seed.sql"',
+    '../../.local/seed.sql',
   ],
   { cwd: root, shell: process.platform === 'win32', stdio: 'inherit' },
 );

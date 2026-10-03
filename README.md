@@ -89,7 +89,7 @@ See [the PayPal guide](docs/paypal.md). Set `PAYMENT_MODE=sandbox`, `PAYPAL_ENVI
 
 Autonomous payments require a buyer-authorized saved PayPal Wallet and a merchant account enabled for the relevant billing agreement/vault features. Use **My agents → Connect PayPal**. Without a saved method, the Orders integration returns `payment_pending` and a sandbox checkout URL; complete checkout in Transactions and click **Check payment**.
 
-This repository was verified locally with the explicit payment simulator and mocked Sandbox adapter tests. Real Sandbox calls require your credentials/account configuration. Provider demo intelligence is synthetic. SecureScan runs a small deterministic code rule scanner; repository URLs alone use a fixture, and this is not a comprehensive security audit.
+This repository was verified locally with the explicit payment simulator and mocked Sandbox adapter tests. Actual Sandbox OAuth, saved-wallet setup initiation, and order creation have also been verified through the Worker. Buyer authorization and completed captures remain to be verified. Real Sandbox calls require your credentials/account configuration. Provider demo intelligence is synthetic. SecureScan runs a small deterministic code rule scanner; repository URLs alone use a fixture, and this is not a comprehensive security audit.
 
 ## MCP connection
 

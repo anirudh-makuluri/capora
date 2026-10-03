@@ -9,6 +9,9 @@ Capora has two deliberately separate modes:
 
 1. Create a Sandbox REST application and separate merchant/buyer Sandbox accounts in the [PayPal Developer Dashboard](https://developer.paypal.com/dashboard/).
 2. Add `PAYPAL_CLIENT_ID` and `PAYPAL_CLIENT_SECRET` to ignored `apps/worker/.dev.vars`. Keep the generated session/encryption/provider secrets. Change `PAYMENT_MODE=sandbox`; retain `PAYPAL_ENVIRONMENT=sandbox`. Restart the Worker.
+
+   Credentials saved only in the repository root `.env` do not override an existing Worker `.dev.vars`. Copy these two values into the Worker file; keep both files out of Git. Verify `/api/health` reports `paymentMode: sandbox` after restart.
+
 3. Buy a capability. Capora creates an Orders v2 order and persists its ID. A policy approval does not itself authorize a new PayPal Wallet.
 4. Open Transactions, select the purchase, and follow **Continue with PayPal**. Sign in with the Sandbox buyer account.
 5. Return to Capora. The authenticated UI reconciles/captures the order. **Check payment** can be retried safely. Only a matching `COMPLETED` capture in USD for the exact quote amount permits execution.
@@ -20,6 +23,7 @@ Ordinary checkout needs buyer interaction. For the $0.20 automatic-purchase demo
 
 1. Ensure the Sandbox merchant supports PayPal payment-method saving / billing agreement reference transactions. Availability depends on the merchant’s PayPal account configuration.
 2. In My agents, choose **Connect PayPal**.
+   Log in with a **Personal Sandbox account**, not your real PayPal account or the merchant's Business Sandbox account. Find the generated email/password under [Sandbox accounts](https://developer.paypal.com/dashboard/accounts) → View/Edit Account. If PayPal opens guest signup and asks for a card, return to login. If a card is required for the test account, use [PayPal's official test cards](https://developer.paypal.com/sandbox-testing/card-testing/), never real card details or arbitrary invented numbers.
 3. Capora creates a Payment Method Tokens v3 setup token with same-origin return/cancel URLs. The human signs in and authorizes the Wallet on PayPal.
 4. The authenticated return UI exchanges that owned setup token for a permanent payment token. Capora stores the token encrypted on the human user record, never on the agent or browser.
 5. Orders for that user include the saved `vault_id`. Capora creates/captures the Sandbox order under the agent’s policy. PayPal can still return a pending or payer-action state, which must be completed before invocation.

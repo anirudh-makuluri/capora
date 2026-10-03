@@ -14,6 +14,7 @@
 ## External verification still required
 
 - [ ] Refresh expired Cloudflare authentication, provision resources, and verify the deployed Worker.
-- [ ] Supply PayPal Sandbox credentials and an eligible buyer-authorized payment method; verify actual order/capture records for both demo purchases.
+- [x] Verify actual PayPal Sandbox authentication, saved-wallet setup initiation, and order creation.
+- [ ] Complete Sandbox buyer wallet authorization and verify capture records for both demo purchases.
 
-Local payments are explicitly simulated. These external checks are required before claiming the requested live deployment and PayPal definition of done.
+The default local setup simulates payments. The configured local workspace now uses PayPal Sandbox; its verification purchase awaits buyer approval. These external checks are required before claiming the requested live deployment and PayPal definition of done.

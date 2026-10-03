@@ -6,7 +6,7 @@ Verified locally on Windows with the bundled Node runtime on October 3, 2026.
 | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `pnpm typecheck`        | Passed: strict Worker, web, scripts, and test TypeScript                                                                                                                           |
 | `pnpm lint`             | Passed                                                                                                                                                                             |
-| `pnpm test`             | Passed: production SPA build, Wrangler Worker dry-run, 47 tests across four files                                                                                                  |
+| `pnpm test`             | Passed: production SPA build, Wrangler Worker dry-run, 48 tests across four files                                                                                                  |
 | Worker integration      | 22 tests using isolated workerd, real D1/R2 bindings, Queue consumer, and official MCP transport                                                                                   |
 | `pnpm test:e2e`         | Passed against running Wrangler/Vite: real HTTP MCP discovery, quote, simulated payment, provider invocation, owner approval, queued job, correct $3.20 spend and $21.80 remaining |
 | `pnpm test:browser`     | Three Chromium tests passed: discovery/schema, complete two-purchase demo/transaction result, desktop/mobile navigation without overflow                                           |
@@ -19,12 +19,12 @@ The tests include concurrent duplicate purchase/payment attempts, competing purc
 
 ## Required external checks
 
-Cloudflare authentication was expired and could not refresh noninteractively. PayPal Sandbox credentials were unavailable. Therefore:
+Cloudflare authentication was expired and could not refresh noninteractively. After Sandbox credentials were supplied, actual Sandbox OAuth authentication, saved-wallet setup-token creation, and a $0.20 Orders API purchase were verified through the running Worker. That purchase is `payment_pending`, awaiting buyer approval. Therefore:
 
 - No remote Cloudflare resources were provisioned or deployed.
-- No actual PayPal Sandbox charge, capture, or saved-wallet setup was performed.
+- No actual PayPal Sandbox capture or completed saved-wallet authorization has been verified yet.
 - Local `DEMO-` receipts are simulated; mocked PayPal adapter tests check API contracts only.
-- The GitHub Actions workflow is supplied but has not run on GitHub.
+- The first GitHub Actions run passed type checking, linting, bundling, and the isolated tests, then failed during Linux seeding because the file-path argument contained literal quotes. The cross-platform seed argument has been corrected; the rerun is pending.
 - Automated accessibility checks and screenshot review do not establish complete manual accessibility conformance.
 
 Complete the account setup and actual end-to-end checks in [deployment.md](deployment.md) and [paypal.md](paypal.md) before claiming the live definition of done.

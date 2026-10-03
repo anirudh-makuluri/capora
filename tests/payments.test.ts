@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 import { PayPalSandbox, receiptFromOrder } from '../apps/worker/src/services/payments';
 import type { Env } from '../apps/worker/src/env';
 const env = {
@@ -8,6 +8,22 @@ const env = {
   CAPORA_BASE_URL: 'https://capora.example',
 } as Env;
 describe('PayPal Sandbox adapter', () => {
+  afterEach(() => vi.unstubAllGlobals());
+  it('preserves the global receiver required by the Worker fetch runtime', async () => {
+    vi.stubGlobal('fetch', function (this: unknown, url: RequestInfo | URL) {
+      expect(this).toBe(globalThis);
+      return Promise.resolve(
+        new Response(
+          JSON.stringify(
+            String(url).includes('oauth2')
+              ? { access_token: 'test-access' }
+              : { id: 'ORDER-TEST', status: 'PAYER_ACTION_REQUIRED' },
+          ),
+        ),
+      );
+    });
+    expect((await new PayPalSandbox(env).createOrder('purchase-test', 20, null)).id).toBe('ORDER-TEST');
+  });
   it('uses sandbox endpoints, vaulted source, cents, and stable idempotency keys', async () => {
     const requests: { url: string; init: RequestInit | undefined }[] = [];
     const fetcher = vi.fn<typeof fetch>(async (url, init) => {

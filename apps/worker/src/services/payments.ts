@@ -49,7 +49,7 @@ export class PayPalSandbox {
   private readonly base = 'https://api-m.sandbox.paypal.com';
   constructor(
     private env: Env,
-    private fetcher: typeof fetch = fetch,
+    private fetcher: typeof fetch = fetch.bind(globalThis),
   ) {}
   private async accessToken(): Promise<string> {
     if (this.env.PAYPAL_ENVIRONMENT !== 'sandbox')
