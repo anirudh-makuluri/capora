@@ -1,0 +1,14 @@
+{
+  "name": "@capora/mcp",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./tools": "./src/tools.ts"
+  },
+  "dependencies": {
+    "@capora/types": "workspace:*",
+    "@modelcontextprotocol/sdk": "latest",
+    "zod": "latest"
+  }
+}

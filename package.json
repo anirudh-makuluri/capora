@@ -1,0 +1,43 @@
+{
+  "name": "capora",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "packageManager": "pnpm@10.32.1",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "concurrently -k -n worker,web \"pnpm --filter @capora/worker dev\" \"pnpm --filter @capora/web dev\"",
+    "build": "pnpm --filter @capora/web build && pnpm --filter @capora/worker build",
+    "typecheck": "tsc --noEmit -p apps/worker && tsc --noEmit -p apps/web && tsc --noEmit -p tests",
+    "test": "pnpm build && vitest run",
+    "test:e2e": "tsx scripts/e2e.ts",
+    "test:browser": "playwright test",
+    "demo": "tsx scripts/demo.ts",
+    "setup:local": "tsx scripts/setup.ts && pnpm db:migrate && pnpm db:seed",
+    "db:migrate": "pnpm --filter @capora/worker db:migrate",
+    "db:seed": "tsx scripts/seed.ts",
+    "db:generate": "drizzle-kit generate --config packages/db/drizzle.config.ts",
+    "cf:types": "pnpm --filter @capora/worker cf:types",
+    "deploy": "pnpm build && pnpm --filter @capora/worker deploy",
+    "lint": "eslint .",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@eslint/js": "latest",
+    "@modelcontextprotocol/sdk": "1.32.0",
+    "@playwright/test": "latest",
+    "@types/node": "latest",
+    "concurrently": "latest",
+    "drizzle-kit": "latest",
+    "eslint": "latest",
+    "miniflare": "5.20261001.0-alpha",
+    "prettier": "latest",
+    "tsx": "latest",
+    "typescript": "~6.0.2",
+    "typescript-eslint": "latest",
+    "vitest": "latest"
+  }
+}

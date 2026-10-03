@@ -1,0 +1,33 @@
+{
+  "name": "@capora/web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@capora/types": "workspace:*",
+    "@capora/mcp": "workspace:*",
+    "react": "latest",
+    "react-dom": "latest",
+    "react-router-dom": "latest",
+    "@tanstack/react-query": "latest",
+    "lucide-react": "latest",
+    "@radix-ui/react-dialog": "latest",
+    "@radix-ui/react-slot": "latest",
+    "class-variance-authority": "latest",
+    "clsx": "latest",
+    "tailwind-merge": "latest",
+    "zod": "latest"
+  },
+  "devDependencies": {
+    "vite": "latest",
+    "@vitejs/plugin-react": "latest",
+    "tailwindcss": "latest",
+    "@tailwindcss/vite": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest"
+  }
+}

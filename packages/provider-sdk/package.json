@@ -1,0 +1,10 @@
+{
+  "name": "@capora/provider-sdk",
+  "private": true,
+  "type": "module",
+  "exports": "./src/index.ts",
+  "dependencies": {
+    "@capora/types": "workspace:*",
+    "@cfworker/json-schema": "latest"
+  }
+}

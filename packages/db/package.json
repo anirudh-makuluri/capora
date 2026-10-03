@@ -1,0 +1,9 @@
+{
+  "name": "@capora/db",
+  "private": true,
+  "type": "module",
+  "exports": "./src/index.ts",
+  "dependencies": {
+    "drizzle-orm": "latest"
+  }
+}

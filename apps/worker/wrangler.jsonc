@@ -1,0 +1,44 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "capora",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-03",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "../web/dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*", "/mcp", "/providers/*"],
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "capora-db",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "../../packages/db/migrations",
+    },
+  ],
+  "r2_buckets": [{ "binding": "ARTIFACTS", "bucket_name": "capora-artifacts" }],
+  "queues": {
+    "producers": [{ "binding": "INVOCATION_QUEUE", "queue": "capora-invocations" }],
+    "consumers": [
+      {
+        "queue": "capora-invocations",
+        "max_batch_size": 5,
+        "max_batch_timeout": 1,
+        "max_retries": 3,
+        "dead_letter_queue": "capora-invocations-dlq",
+      },
+    ],
+  },
+  "triggers": { "crons": ["*/5 * * * *"] },
+  "vars": {
+    "CAPORA_BASE_URL": "http://localhost:5173",
+    "PAYMENT_MODE": "sandbox",
+    "PAYPAL_ENVIRONMENT": "sandbox",
+    "DEV_MODE": "false",
+    "PROVIDER_ALLOWED_HOSTS": "",
+    "DASHBOARD_USER_ID": "user_demo",
+  },
+  "observability": { "enabled": true, "head_sampling_rate": 1 },
+}
