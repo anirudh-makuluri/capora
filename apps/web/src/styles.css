@@ -3539,3 +3539,26 @@ td {
     transition: none !important;
   }
 }
+
+.login-card .field {
+  margin-bottom: 18px;
+}
+.login-card .field small {
+  color: #59644f;
+  font-size: 12px;
+}
+.login-card p {
+  color: #59644f;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.login-card .auth-switch {
+  margin: 22px 0 0;
+  text-align: center;
+}
+.auth-switch a {
+  color: #355521;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

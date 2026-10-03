@@ -6,6 +6,7 @@ import { DomainError, searchSchema } from '@capora/types';
 import { handleMcp } from '@capora/mcp';
 import { MAX_PAYLOAD_BYTES } from '@capora/config';
 import { id } from './lib/crypto';
+import { cleanupAuth } from './lib/auth';
 import { authenticateAgent, requireHuman, originAllowed } from './services/auth';
 import { searchCapabilities, getCapability } from './services/catalog';
 import {
@@ -166,6 +167,6 @@ export default {
     }
   },
   async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext) {
-    ctx.waitUntil(Promise.all([expireApprovals(env), recoverJobs(env)]));
+    ctx.waitUntil(Promise.all([expireApprovals(env), recoverJobs(env), cleanupAuth(env)]));
   },
 } satisfies ExportedHandler<Env, JobMessage>;

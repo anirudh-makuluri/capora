@@ -5,7 +5,7 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   use: {
-    baseURL: 'http://localhost:5173',
+    baseURL: 'http://localhost:5174',
     viewport: { width: 1440, height: 1050 },
     headless: true,
     screenshot: 'only-on-failure',
@@ -13,9 +13,9 @@ export default defineConfig({
   },
   projects: [{ name: 'chromium', use: { browserName: 'chromium' } }],
   webServer: {
-    command: 'pnpm dev',
-    url: 'http://localhost:5173/api/health',
-    reuseExistingServer: true,
+    command: 'pnpm exec tsx scripts/browser-server.ts',
+    url: 'http://localhost:5174/api/health',
+    reuseExistingServer: false,
     timeout: 45_000,
   },
   reporter: 'list',

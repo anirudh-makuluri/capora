@@ -2,9 +2,9 @@ import { agents, users, spendingPolicies, drizzle } from '@capora/db';
 import { eq, and } from 'drizzle-orm';
 import { DEFAULT_POLICY } from '@capora/config';
 import { DomainError } from '@capora/types';
-import { getCookie } from 'hono/cookie';
 import type { Context } from 'hono';
-import { hash, id, token, verifySession } from '../lib/crypto';
+import { hash, id, token } from '../lib/crypto';
+import { createAuth } from '../lib/auth';
 import type { Env, AppEnv } from '../env';
 
 export function isLocalDemo(request: Request, env: Env): boolean {
@@ -55,9 +55,8 @@ export async function authenticateAgent(request: Request, env: Env) {
   return agent;
 }
 export async function requireHuman(c: Context<AppEnv>) {
-  const userId = isLocalDemo(c.req.raw, c.env)
-    ? c.env.DASHBOARD_USER_ID
-    : await verifySession(getCookie(c, 'capora_session') ?? '', c.env.SESSION_SECRET);
+  const session = await createAuth(c.env).api.getSession({ headers: c.req.raw.headers });
+  const userId = session?.user.id;
   if (!userId) throw new DomainError('UNAUTHORIZED', 'Sign in to your Capora workspace.', 401);
   const user = await drizzle(c.env.DB).select().from(users).where(eq(users.id, userId)).get();
   if (!user) throw new DomainError('UNAUTHORIZED', 'Workspace user does not exist.', 401);

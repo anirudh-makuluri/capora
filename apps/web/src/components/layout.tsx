@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { NavLink, Outlet, Link, useLocation } from 'react-router-dom';
+import { NavLink, Outlet, Link, useLocation, Navigate } from 'react-router-dom';
 import {
   ArrowUpRight,
   ArrowRight,
@@ -19,59 +19,12 @@ import {
   LogOut,
 } from 'lucide-react';
 import { Mark } from './brand';
-import { Button, Badge, Dialog, CodeBlock, ErrorNotice, Skeleton } from './ui';
-import { api, useDashboard, useSession } from '../lib/api';
+import { Button, Dialog, CodeBlock, ErrorNotice, Skeleton } from './ui';
+import { api, ApiError, useDashboard, useSession } from '../lib/api';
 import { useQueryClient } from '@tanstack/react-query';
-import type { FormEvent } from 'react';
 
-export function Login() {
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState<unknown>();
-  const [busy, setBusy] = useState(false);
-  const client = useQueryClient();
-  const submit = async (e: FormEvent) => {
-    e.preventDefault();
-    setBusy(true);
-    setError(undefined);
-    try {
-      await api('/auth/login', { method: 'POST', body: { password } });
-      await client.invalidateQueries({ queryKey: ['session'] });
-    } catch (err) {
-      setError(err);
-    } finally {
-      setBusy(false);
-    }
-  };
-  return (
-    <div className="login-page">
-      <Link to="/" className="brand">
-        <Mark />
-        Capora
-      </Link>
-      <form className="login-card" onSubmit={submit}>
-        <Badge tone="green">YOUR CAPABILITY WORKSPACE</Badge>
-        <h1>Welcome back.</h1>
-        <p>Sign in to manage the capabilities your agents acquire.</p>
-        <label className="field">
-          <span>Workspace password</span>
-          <input
-            type="password"
-            autoComplete="current-password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-        </label>
-        <ErrorNotice error={error} />
-        <Button busy={busy}>
-          Open workspace <ArrowRight size={17} />
-        </Button>
-        <small>Use the password configured by your workspace operator.</small>
-      </form>
-    </div>
-  );
-}
 export function AppLayout() {
+  const location = useLocation();
   const session = useSession();
   if (session.isPending)
     return (
@@ -80,7 +33,15 @@ export function AppLayout() {
         <Skeleton className="loading-line" />
       </div>
     );
-  if (!session.data) return <Login />;
+  if (!session.data) {
+    if (session.error instanceof ApiError && session.error.status === 401)
+      return <Navigate to="/login" state={{ from: location.pathname + location.search }} replace />;
+    return (
+      <div className="loading-page">
+        <ErrorNotice error={session.error} />
+      </div>
+    );
+  }
   return <WorkspaceLayout />;
 }
 function WorkspaceLayout() {
@@ -169,7 +130,14 @@ function WorkspaceLayout() {
             <CircleHelp size={17} /> Documentation <ExternalLink size={13} />
           </Link>
           <div className="user-row">
-            <span className="user-avatar">AM</span>
+            <span className="user-avatar">
+              {session?.user.name
+                .split(/\s+/)
+                .map((part) => part[0])
+                .slice(0, 2)
+                .join('')
+                .toUpperCase()}
+            </span>
             <span>
               {session?.user.name}
               <small>Workspace owner</small>
@@ -179,9 +147,9 @@ function WorkspaceLayout() {
                 className="icon-button"
                 aria-label="Sign out"
                 onClick={async () => {
-                  await api('/auth/logout', { method: 'POST', body: {} });
+                  await api('/auth/sign-out', { method: 'POST', body: {} });
                   client.clear();
-                  window.location.reload();
+                  window.location.assign('/login');
                 }}
               >
                 <LogOut size={16} />

@@ -41,7 +41,6 @@
     "PAYPAL_ENVIRONMENT": "sandbox",
     "DEV_MODE": "false",
     "PROVIDER_ALLOWED_HOSTS": "",
-    "DASHBOARD_USER_ID": "user_demo",
   },
   "observability": { "enabled": true, "head_sampling_rate": 1 },
 }

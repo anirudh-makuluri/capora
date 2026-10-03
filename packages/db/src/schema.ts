@@ -1,13 +1,77 @@
-import { sqliteTable, text, integer, real, index, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, real, index, uniqueIndex, customType } from 'drizzle-orm/sqlite-core';
+import { sql } from 'drizzle-orm';
 import type { CapabilityType, PurchaseStatus, JobStatus, JsonSchema, JsonInput } from '@capora/types';
 
+// Keep existing ISO text timestamps while exposing Date values to Better Auth.
+const isoDate = customType<{ data: Date; driverData: string }>({
+  dataType: () => 'text',
+  toDriver: (value) => value.toISOString(),
+  fromDriver: (value) => new Date(value),
+});
 export const users = sqliteTable('users', {
   id: text('id').primaryKey(),
   email: text('email').notNull().unique(),
   name: text('name').notNull(),
   vaultEncrypted: text('vault_encrypted'),
-  createdAt: text('created_at').notNull(),
+  emailVerified: integer('email_verified', { mode: 'boolean' }).notNull().default(false),
+  image: text('image'),
+  createdAt: isoDate('created_at').notNull(),
+  updatedAt: isoDate('updated_at')
+    .notNull()
+    .default(sql`'1970-01-01T00:00:00.000Z'`),
 });
+export const authSessions = sqliteTable(
+  'auth_sessions',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    token: text('token').notNull().unique(),
+    expiresAt: integer('expires_at', { mode: 'timestamp_ms' }).notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+    updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
+    ipAddress: text('ip_address'),
+    userAgent: text('user_agent'),
+  },
+  (t) => [index('auth_sessions_user_idx').on(t.userId)],
+);
+export const authAccounts = sqliteTable(
+  'auth_accounts',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    accountId: text('account_id').notNull(),
+    providerId: text('provider_id').notNull(),
+    password: text('password'),
+    accessToken: text('access_token'),
+    refreshToken: text('refresh_token'),
+    idToken: text('id_token'),
+    accessTokenExpiresAt: integer('access_token_expires_at', { mode: 'timestamp_ms' }),
+    refreshTokenExpiresAt: integer('refresh_token_expires_at', { mode: 'timestamp_ms' }),
+    scope: text('scope'),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+    updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
+  },
+  (t) => [
+    index('auth_accounts_user_idx').on(t.userId),
+    uniqueIndex('auth_accounts_provider_idx').on(t.providerId, t.accountId),
+  ],
+);
+export const authVerifications = sqliteTable(
+  'auth_verifications',
+  {
+    id: text('id').primaryKey(),
+    identifier: text('identifier').notNull(),
+    value: text('value').notNull(),
+    expiresAt: integer('expires_at', { mode: 'timestamp_ms' }).notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+    updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
+  },
+  (t) => [index('auth_verifications_identifier_idx').on(t.identifier)],
+);
 export const agents = sqliteTable(
   'agents',
   {

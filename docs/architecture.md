@@ -4,22 +4,22 @@
 
 One Cloudflare Worker hosts Hono REST routes, an official SDK Streamable HTTP MCP endpoint, static frontend assets, the Queue consumer, and a scheduled recovery handler. React never calls PayPal or a provider directly. REST and MCP invoke the same domain services under `apps/worker/src/services`.
 
-This MVP has one operator-controlled human workspace. A signed dashboard session identifies its user; hashed Bearer tokens identify individual buyer agents. Agent policies, approvals, purchases, invocations, jobs, providers, and uploaded datasets are checked against their owner. The public catalog omits provider endpoints and secrets. Agent tokens cannot approve purchases or administer providers.
+Each email/password account has its own workspace. A Better Auth session stored in D1 identifies its user; hashed Bearer tokens identify individual buyer agents. Agent policies, approvals, purchases, invocations, jobs, providers, and uploaded datasets are checked against their owner. The public catalog omits provider endpoints and secrets. Agent tokens cannot approve purchases or administer providers.
 
-Local automatic dashboard identity requires `DEV_MODE=true` and a loopback request. Remote traffic requires the workspace password. Human sessions use HMAC-signed, expiring HttpOnly cookies with SameSite protection. JSON mutations check the request origin; foreign MCP origins are rejected. Provider and saved-payment secrets use AES-GCM encryption with an operator-managed key. Logs contain correlation IDs, event names, and record IDs rather than request bodies or secrets.
+Both local and remote dashboards require individual email/password login. Better Auth hashes passwords with scrypt and uses expiring, revocable D1 sessions with HttpOnly/SameSite cookies. See [authentication](authentication.md) for owner migration and limits. JSON mutations check the request origin; foreign MCP origins are rejected. Provider and saved-payment secrets use AES-GCM encryption with an operator-managed key. Logs contain correlation IDs, event names, and record IDs rather than request bodies or secrets.
 
 ## Storage
 
-`packages/db/src/schema.ts` defines the Drizzle D1 model. Tracked migrations are the source of database evolution. Monetary amounts are integer USD cents, timestamps are ISO UTC, and budget days are UTC calendar dates. Foreign keys and unique constraints protect identities, one purchase per quote, and one invocation per purchase.
+`packages/db/src/schema.ts` defines the Drizzle D1 model. Tracked migrations are the source of database evolution. Monetary amounts are integer USD cents, domain timestamps are ISO UTC and authentication session/account timestamps are epoch milliseconds, and budget days are UTC calendar dates. Foreign keys and unique constraints protect identities, one purchase per quote, and one invocation per purchase.
 
 | Store          | Contents                                                                                                                                         |
 | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | D1             | Users, agents, policies, catalog, quotes, purchases, transactions, approvals, invocations, jobs, reviews, activity, billing setup, rate counters |
 | R2             | Owned uploaded JSON datasets and results over 16 KiB                                                                                             |
 | Queue          | Invocation/job identifiers; provider credentials remain in D1 encrypted                                                                          |
-| Worker secrets | Session key, encryption key, dashboard password, provider demo authentication, PayPal Sandbox credentials                                        |
+| Worker secrets | Session key, encryption key, provider demo authentication, PayPal Sandbox credentials                                                            |
 
-Quotes retain their intended arguments so a confirmed purchase can execute later. Invocation inputs and results are owner-accessible, not public. Activity and structured logs are metadata-only. There is no automatic retention/deletion policy; real private-data integrations need a defined retention policy and stronger human identity before rollout.
+Quotes retain their intended arguments so a confirmed purchase can execute later. Invocation inputs and results are owner-accessible, not public. Activity and structured logs are metadata-only. Expired authentication records and rate counters are cleaned up; other application records have no automatic retention/deletion policy; real private-data integrations need a defined retention policy and stronger human identity before rollout.
 
 ## Commerce invariants
 

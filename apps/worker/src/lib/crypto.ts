@@ -60,30 +60,3 @@ export async function unseal(value: string, secret: string): Promise<string> {
   );
   return new TextDecoder().decode(plaintext);
 }
-async function signingKey(secret: string) {
-  if (!secret || secret.length < 32)
-    throw new DomainError('CONFIGURATION_REQUIRED', 'A strong session secret is required.', 503);
-  return crypto.subtle.importKey('raw', encoder.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, [
-    'sign',
-    'verify',
-  ]);
-}
-export async function signSession(userId: string, secret: string): Promise<string> {
-  const payload = b64(encoder.encode(JSON.stringify({ userId, expires: Date.now() + 12 * 60 * 60 * 1000 })));
-  return `${payload}.${b64(new Uint8Array(await crypto.subtle.sign('HMAC', await signingKey(secret), encoder.encode(payload))))}`;
-}
-export async function verifySession(value: string, secret: string): Promise<string | null> {
-  try {
-    const [payload, sig] = value.split('.');
-    if (
-      !payload ||
-      !sig ||
-      !(await crypto.subtle.verify('HMAC', await signingKey(secret), unb64(sig), encoder.encode(payload)))
-    )
-      return null;
-    const data: { userId: string; expires: number } = JSON.parse(new TextDecoder().decode(unb64(payload)));
-    return data.expires > Date.now() && typeof data.userId === 'string' ? data.userId : null;
-  } catch {
-    return null;
-  }
-}

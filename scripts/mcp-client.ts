@@ -4,6 +4,29 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import type { ApiErrorBody } from '../packages/types/src/index';
 export const baseUrl = process.env.CAPORA_BASE_URL ?? 'http://127.0.0.1:8787';
+let localSessionCookie: string | undefined;
+async function humanCookie() {
+  if (process.env.CAPORA_SESSION_COOKIE) return process.env.CAPORA_SESSION_COOKIE;
+  if (!['localhost', '127.0.0.1'].includes(new URL(baseUrl).hostname)) return undefined;
+  if (localSessionCookie) return localSessionCookie;
+  const credentials = JSON.parse(
+    await readFile(resolve(import.meta.dirname, '../.local/credentials.json'), 'utf8'),
+  );
+  const response = await fetch(new URL('/api/auth/sign-in/email', baseUrl), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Origin: process.env.CAPORA_AUTH_ORIGIN ?? 'http://localhost:5173',
+    },
+    body: JSON.stringify({ email: 'demo@capora.local', password: credentials.dashboardPassword }),
+  });
+  if (!response.ok) throw new Error('Local owner login failed. Run pnpm setup:local first.');
+  localSessionCookie = response.headers
+    .getSetCookie()
+    .map((cookie) => cookie.split(';')[0])
+    .join('; ');
+  return localSessionCookie;
+}
 export async function connect(token?: string) {
   const credentials =
     token || process.env.CAPORA_AGENT_TOKEN
@@ -29,15 +52,16 @@ export async function call<T>(client: Client, name: string, args: Record<string,
   return parsed as T;
 }
 export async function rest<T>(path: string, body?: unknown, method = 'POST'): Promise<T> {
+  const cookie = await humanCookie();
   const res = await fetch(
     new URL(`/api${path}`, baseUrl),
     body === undefined
-      ? {}
+      ? { headers: cookie ? { Cookie: cookie } : {} }
       : {
           method,
           headers: {
             'Content-Type': 'application/json',
-            ...(process.env.CAPORA_SESSION_COOKIE ? { Cookie: process.env.CAPORA_SESSION_COOKIE } : {}),
+            ...(cookie ? { Cookie: cookie } : {}),
           },
           body: JSON.stringify(body),
         },

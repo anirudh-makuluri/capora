@@ -10,13 +10,15 @@
     "cf:types": "wrangler types --env-interface CloudflareBindings"
   },
   "dependencies": {
-    "@capora/db": "workspace:*",
-    "@capora/types": "workspace:*",
-    "@capora/mcp": "workspace:*",
+    "@better-auth/drizzle-adapter": "1.7.7",
     "@capora/config": "workspace:*",
+    "@capora/db": "workspace:*",
+    "@capora/mcp": "workspace:*",
     "@capora/provider-sdk": "workspace:*",
-    "hono": "latest",
+    "@capora/types": "workspace:*",
+    "better-auth": "1.7.7",
     "drizzle-orm": "latest",
+    "hono": "latest",
     "zod": "latest"
   },
   "devDependencies": {

@@ -39,12 +39,11 @@ Edit `apps/worker/wrangler.jsonc`:
 - Replace the all-zero local `database_id` with the ID returned by `d1 create`.
 - Set `CAPORA_BASE_URL` to the final HTTPS Worker/custom-domain origin, without a trailing slash. For a first launch, use `https://capora.YOUR_SUBDOMAIN.workers.dev`; find or register your Workers subdomain in the Cloudflare dashboard. You can add a custom domain later.
 - Keep `DEV_MODE=false`, `PAYMENT_MODE=sandbox`, and `PAYPAL_ENVIRONMENT=sandbox`.
-- Set `DASHBOARD_USER_ID=user_demo` for the seeded workspace.
 - Populate `PROVIDER_ALLOWED_HOSTS` only with exact, trusted public HTTPS provider hostnames. Empty means only protected built-in demos and owned R2 datasets can execute.
 
 The root configuration is the canonical sandbox deployment. For multiple environments, duplicate bindings/vars using Wrangler environments and provision distinct D1/R2/Queue resources; Wrangler does not inherit these bindings across environments.
 
-Run `pnpm deploy:check` before remote operations. It rejects the placeholder database ID, local/invalid origins, local demo authentication, and non-Sandbox payment settings. Keep public settings in this version-controlled config: routine Wrangler deploys replace plain variables with the config values. The deployment checker and remote migration script currently target this root environment only.
+Run `pnpm deploy:check` before remote operations. It rejects the placeholder database ID, local/invalid origins, local demo mode, and non-Sandbox payment settings. Keep public settings in this version-controlled config: routine Wrangler deploys replace plain variables with the config values. The deployment checker and remote migration script currently target this root environment only.
 
 To add a custom domain, configure a Workers Custom Domain for `capora`, update `CAPORA_BASE_URL` to that exact origin, and deploy. Use that origin for the dashboard, MCP clients, and PayPal return/cancel callbacks. Initial domain setup needs access to its Cloudflare zone; routine Worker deployments do not need to manage DNS.
 
@@ -53,7 +52,6 @@ To add a custom domain, configure a Workers Custom Domain for `capora`, update `
 Use interactive prompts; never put secret values in commands, source files, or frontend variables:
 
 ```sh
-pnpm --filter @capora/worker exec wrangler secret put DASHBOARD_PASSWORD
 pnpm --filter @capora/worker exec wrangler secret put SESSION_SECRET
 pnpm --filter @capora/worker exec wrangler secret put ENCRYPTION_KEY
 pnpm --filter @capora/worker exec wrangler secret put DEMO_PROVIDER_SECRET
@@ -61,7 +59,7 @@ pnpm --filter @capora/worker exec wrangler secret put PAYPAL_CLIENT_ID
 pnpm --filter @capora/worker exec wrangler secret put PAYPAL_CLIENT_SECRET
 ```
 
-Use a unique workspace password with at least 16 characters and independently generated random secrets with at least 32 characters for session/encryption/provider authentication. `ENCRYPTION_KEY` protects stored provider credentials and saved PayPal tokens; keep it stable and securely backed up. Rotating it without re-encryption makes existing credentials unreadable. Rotate `SESSION_SECRET` to invalidate human sessions.
+Use independently generated random secrets with at least 32 characters for session/encryption/provider authentication. `ENCRYPTION_KEY` protects stored provider credentials and saved PayPal tokens; keep it stable and securely backed up. Rotating it without re-encryption makes existing credentials unreadable. Rotate `SESSION_SECRET` to invalidate human sessions.
 
 Use deployment-specific secrets instead of copying the local demo credentials. These prompts can create the Worker before its first full deployment. `pnpm deploy:check -- --secrets` lists secret names to check presence; it cannot inspect their values or verify PayPal credentials. Future deployments preserve Worker secrets and do not rotate them.
 
@@ -116,7 +114,7 @@ Sources: [Worker static assets](https://developers.cloudflare.com/workers/static
 ## 6. Verify the actual deployment
 
 1. Visit `/api/health` and confirm `paymentMode: sandbox`.
-2. Open the dashboard. A remote request must require the configured workspace password.
+2. Open the dashboard. A remote request must require individual email/password login. See [authentication](authentication.md) to provision the existing seeded owner without losing its data.
 3. Confirm the seeded marketplace loads from remote D1.
 4. Create an agent and connect an official MCP client with its token to `https://YOUR_HOST/mcp`.
 5. Complete saved PayPal Wallet setup if the merchant supports it, or use standard Sandbox checkout.

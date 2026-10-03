@@ -1,0 +1,35 @@
+import { test, expect } from '@playwright/test';
+
+test('signup, account isolation, logout, and email/password login work in the browser', async ({ page }) => {
+  const email = `browser-${crypto.randomUUID()}@example.com`;
+  const password = 'browser-test-password-only-2026';
+  await page.goto('/agents');
+  await expect(page).toHaveURL(/\/login$/);
+  await page.getByRole('link', { name: 'Create an account' }).click();
+  await page.getByLabel('Name', { exact: true }).fill('Browser Tester');
+  await page.getByLabel('Email', { exact: true }).fill(email);
+  await page.getByLabel('Password', { exact: true }).fill(password);
+  await page.screenshot({ path: '.local/screenshots/signup-desktop.png', fullPage: true });
+  await page.getByRole('button', { name: 'Create account', exact: true }).click();
+  await expect(page).toHaveURL(/\/agents$/);
+  await expect(page.getByText('Create your first agent', { exact: true })).toBeVisible();
+  await expect(page.locator('.user-row')).toContainText('Browser Tester');
+  await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+  await expect(page).toHaveURL(/\/login$/);
+  await page.getByLabel('Email', { exact: true }).fill(email);
+  await page.getByLabel('Password', { exact: true }).fill('wrong-password');
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  await expect(page.getByText('Invalid email or password')).toBeVisible();
+  await page.getByLabel('Password', { exact: true }).fill(password);
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  await expect(page).toHaveURL(/\/overview$/);
+  await page.reload();
+  await expect(page.locator('.user-row')).toContainText('Browser Tester');
+  await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Welcome back.' })).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/login');
+  await expect(page.getByRole('heading', { name: 'Welcome back.' })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.screenshot({ path: '.local/screenshots/login-mobile.png', fullPage: true });
+});

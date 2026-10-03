@@ -4,7 +4,6 @@ import ts from 'typescript';
 
 export const root = resolve(import.meta.dirname, '..');
 export const requiredSecrets = [
-  'DASHBOARD_PASSWORD',
   'SESSION_SECRET',
   'ENCRYPTION_KEY',
   'DEMO_PROVIDER_SECRET',
@@ -57,7 +56,5 @@ export function validateDeploymentConfig(config: DeploymentConfig): URL {
     config.vars.PAYPAL_ENVIRONMENT !== 'sandbox'
   )
     throw new Error('Deploy with DEV_MODE=false, PAYMENT_MODE=sandbox, and PAYPAL_ENVIRONMENT=sandbox.');
-  if (config.vars.DASHBOARD_USER_ID !== 'user_demo')
-    throw new Error('The seeded workspace requires DASHBOARD_USER_ID=user_demo.');
   return url;
 }

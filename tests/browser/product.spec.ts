@@ -1,4 +1,14 @@
 import { test, expect } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
+
+test.beforeEach(async ({ page }) => {
+  const credentials = JSON.parse(await readFile('.local/credentials.json', 'utf8'));
+  const response = await page.request.post('/api/auth/sign-in/email', {
+    headers: { Origin: 'http://localhost:5174' },
+    data: { email: 'demo@capora.local', password: credentials.dashboardPassword },
+  });
+  expect(response.ok(), response.ok() ? '' : await response.text()).toBe(true);
+});
 test('marketplace discovers, filters, and opens machine-readable details', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));

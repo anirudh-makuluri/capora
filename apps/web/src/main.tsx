@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AppLayout } from './components/layout';
 import { Skeleton } from './components/ui';
 import { Landing } from './pages/landing';
+import { AuthPage } from './pages/auth';
 import './styles.css';
 
 const client = new QueryClient({
@@ -56,6 +57,8 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           >
             <Routes>
               <Route path="/" element={<Landing />} />
+              <Route path="/login" element={<AuthPage />} />
+              <Route path="/signup" element={<AuthPage signup />} />
               <Route element={<AppLayout />}>
                 <Route path="/marketplace" element={<Marketplace />} />
                 <Route path="/marketplace/:id" element={<CapabilityDetail />} />

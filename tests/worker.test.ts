@@ -8,8 +8,10 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 import { seedCapabilities, outputSchema } from '../scripts/seed-data';
 import type { Purchase, Quote, Invocation, Budget, Job } from '../packages/types/src/index';
 import { R2_BUDGET } from '../packages/config/src/index';
+import { hashPassword } from '../apps/worker/src/lib/password';
 
 let mf: Miniflare;
+let sessionCookie = '';
 const agentToken = 'cap_test-token-only-for-isolated-integration-tests';
 const secret = 'test-only-secret-with-at-least-thirty-two-characters';
 const tokenHash = createHash('sha256').update(agentToken).digest('hex');
@@ -17,8 +19,12 @@ async function request<T>(path: string, body?: unknown, method = 'POST') {
   const response = await mf.dispatchFetch(
     `http://localhost/api${path}`,
     body === undefined
-      ? {}
-      : { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) },
+      ? { headers: { Cookie: sessionCookie } }
+      : {
+          method,
+          headers: { 'Content-Type': 'application/json', Cookie: sessionCookie },
+          body: JSON.stringify(body),
+        },
   );
   return { status: response.status, data: (await response.json()) as T };
 }
@@ -45,10 +51,8 @@ beforeAll(async () => {
         PAYMENT_MODE: 'demo',
         PAYPAL_ENVIRONMENT: 'sandbox',
         CAPORA_BASE_URL: 'http://localhost:5173',
-        DASHBOARD_USER_ID: 'user_test',
         SESSION_SECRET: secret,
         ENCRYPTION_KEY: secret,
-        DASHBOARD_PASSWORD: secret,
         DEMO_PROVIDER_SECRET: secret,
         PROVIDER_ALLOWED_HOSTS: 'api.provider.example',
       },
@@ -82,6 +86,30 @@ beforeAll(async () => {
     .bind('agent_other', 'user_other', 'Other agent', 'other-hash', now)
     .run();
   await db.prepare('INSERT INTO spending_policies(agent_id) VALUES (?)').bind('agent_other').run();
+  await db
+    .prepare(
+      'INSERT INTO auth_accounts(id,user_id,account_id,provider_id,password,created_at,updated_at) VALUES (?,?,?,?,?,?,?)',
+    )
+    .bind(
+      'account_test',
+      'user_test',
+      'user_test',
+      'credential',
+      await hashPassword(secret),
+      Date.now(),
+      Date.now(),
+    )
+    .run();
+  const login = await mf.dispatchFetch('http://localhost/api/auth/sign-in/email', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Origin: 'http://localhost:5173' },
+    body: JSON.stringify({ email: 'test@capora.local', password: secret }),
+  });
+  expect(login.status).toBe(200);
+  sessionCookie = login.headers
+    .getSetCookie()
+    .map((cookie) => cookie.split(';')[0])
+    .join('; ');
   for (const c of seedCapabilities) {
     await db
       .prepare(

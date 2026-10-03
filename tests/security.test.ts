@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { canonical, hash, seal, unseal, signSession, verifySession } from '../apps/worker/src/lib/crypto';
+import { canonical, hash, seal, unseal } from '../apps/worker/src/lib/crypto';
 import { validateEndpoint, boundedJson, invokeProvider } from '../apps/worker/src/services/gateway';
 import { validatePayload, validateSchemaDefinition } from '../packages/provider-sdk/src/index';
 import { companySchema, outputSchema } from '../scripts/seed-data';
@@ -18,12 +18,6 @@ describe('Gateway and credential boundaries', () => {
     expect(sealed).not.toContain('test-provider-secret');
     expect(await unseal(sealed, secret)).toBe('test-provider-secret');
     await expect(unseal(sealed, secret + 'wrong')).rejects.toThrow();
-  });
-  it('accepts signed sessions and rejects tampering', async () => {
-    const secret = 'test-session-key-that-is-at-least-32-characters';
-    const session = await signSession('user_test', secret);
-    expect(await verifySession(session, secret)).toBe('user_test');
-    expect(await verifySession(session + 'changed', secret)).toBeNull();
   });
   it('validates required inputs and rejects unknown fields', () => {
     expect(() => validatePayload(companySchema, { company: 'Acme Robotics' })).not.toThrow();

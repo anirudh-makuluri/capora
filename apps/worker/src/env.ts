@@ -3,7 +3,6 @@ export type Env = {
 } & {
   SESSION_SECRET: string;
   ENCRYPTION_KEY: string;
-  DASHBOARD_PASSWORD: string;
   DEMO_PROVIDER_SECRET: string;
   PAYPAL_CLIENT_ID?: string;
   PAYPAL_CLIENT_SECRET?: string;

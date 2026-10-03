@@ -11,7 +11,6 @@ const valid: DeploymentConfig = {
     DEV_MODE: 'false',
     PAYMENT_MODE: 'sandbox',
     PAYPAL_ENVIRONMENT: 'sandbox',
-    DASHBOARD_USER_ID: 'user_demo',
   },
 };
 

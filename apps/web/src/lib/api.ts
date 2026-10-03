@@ -20,8 +20,8 @@ export async function api<T>(path: string, options?: { method?: string; body?: u
   const body = await response.json();
   if (!response.ok)
     throw new ApiError(
-      body.error?.code ?? 'REQUEST_FAILED',
-      body.error?.message ?? 'The request failed.',
+      body.error?.code ?? body.code ?? 'REQUEST_FAILED',
+      body.error?.message ?? body.message ?? 'The request failed.',
       response.status,
     );
   return body as T;
@@ -31,7 +31,7 @@ export const useSession = () =>
     queryKey: ['session'],
     queryFn: () => api<Session>('/auth/session'),
     retry: false,
-    staleTime: 60_000,
+    staleTime: 5_000,
   });
 export const useDashboard = () =>
   useQuery({ queryKey: ['dashboard'], queryFn: () => api<Dashboard>('/dashboard'), refetchInterval: 2000 });

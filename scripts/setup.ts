@@ -30,7 +30,7 @@ try {
 } catch {
   await writeFile(
     varsPath,
-    `DEV_MODE=true\nPAYMENT_MODE=demo\nCAPORA_BASE_URL=http://localhost:5173\nDASHBOARD_PASSWORD=${credentials.dashboardPassword}\nSESSION_SECRET=${credentials.sessionSecret}\nENCRYPTION_KEY=${credentials.encryptionKey}\nDEMO_PROVIDER_SECRET=${credentials.providerSecret}\n`,
+    `DEV_MODE=true\nPAYMENT_MODE=demo\nCAPORA_BASE_URL=http://localhost:5173\nSESSION_SECRET=${credentials.sessionSecret}\nENCRYPTION_KEY=${credentials.encryptionKey}\nDEMO_PROVIDER_SECRET=${credentials.providerSecret}\n`,
     { mode: 0o600 },
   );
 }
