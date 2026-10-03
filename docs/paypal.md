@@ -32,6 +32,16 @@ Capora is the single Sandbox merchant in this MVP. It records provider-attribute
 
 ## Retry and failure behavior
 
+### Sandbox account errors
+
+- `CANNOT_PAY_SELF`: the browser must use a Personal Sandbox buyer distinct from the Business Sandbox merchant associated with the REST app. Sign out of a cached merchant session before retrying.
+- `UNSUPPORTED_PAYEE_CURRENCY`: Capora prices and verifies payments in USD. The Business Sandbox merchant must accept USD. Review its payment receiving preferences and supported currencies, or use a USD-capable Sandbox merchant/app. Changing API credentials alone does not authorize a buyer wallet; reconnect the wallet after changing the merchant.
+- A generic error in the saved-wallet authorization page does not prove that a wallet was connected. Capora only marks billing connected after exchanging an approved setup token successfully.
+
+See PayPal's [unsupported currency explanation](https://developer.paypal.com/api/errors/unsupported-payee-currency/) and [payment receiving preferences](https://www.paypal.com/au/cshelp/article/what-are-payment-receiving-preferences-and-how-can-i-set-them-help536).
+
+### Payment retries
+
 - Create/capture requests each have a separate, stable, 32-character `PayPal-Request-Id` derived from the purchase ID.
 - A D1 lease serializes payment operations. Other callers see the pending purchase while work is active.
 - Credential/configuration errors before an order can exist fail the purchase and release its reservation.

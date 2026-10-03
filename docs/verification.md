@@ -19,12 +19,12 @@ The tests include concurrent duplicate purchase/payment attempts, competing purc
 
 ## Required external checks
 
-Cloudflare authentication was expired and could not refresh noninteractively. After Sandbox credentials were supplied, actual Sandbox OAuth authentication, saved-wallet setup-token creation, and a $0.20 Orders API purchase were verified through the running Worker. That purchase is `payment_pending`, awaiting buyer approval. Therefore:
+Cloudflare authentication was expired and could not refresh noninteractively. After Sandbox credentials were supplied, actual Sandbox OAuth authentication, saved-wallet setup-token creation, and a $0.20 Orders API purchase were verified through the running Worker. Sandbox buyer login also succeeded. Checkout then returned `UNSUPPORTED_PAYEE_CURRENCY`: the merchant cannot currently receive the order's USD currency. That purchase remains `payment_pending` without a capture. Therefore:
 
 - No remote Cloudflare resources were provisioned or deployed.
 - No actual PayPal Sandbox capture or completed saved-wallet authorization has been verified yet.
 - Local `DEMO-` receipts are simulated; mocked PayPal adapter tests check API contracts only.
-- The first GitHub Actions run passed type checking, linting, bundling, and the isolated tests, then failed during Linux seeding because the file-path argument contained literal quotes. The cross-platform seed argument has been corrected; the rerun is pending.
+- The first GitHub Actions run failed during Linux seeding because the file-path argument contained literal quotes. The fix was pushed in `6778505`; its GitHub Actions rerun passed, including type checking, linting, builds, 48 isolated tests, local seeding, and all three Chromium browser tests.
 - Automated accessibility checks and screenshot review do not establish complete manual accessibility conformance.
 
 Complete the account setup and actual end-to-end checks in [deployment.md](deployment.md) and [paypal.md](paypal.md) before claiming the live definition of done.
