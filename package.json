@@ -20,7 +20,10 @@
     "db:seed": "tsx scripts/seed.ts",
     "db:generate": "drizzle-kit generate --config packages/db/drizzle.config.ts",
     "cf:types": "pnpm --filter @capora/worker cf:types",
-    "deploy": "pnpm build && pnpm --filter @capora/worker deploy",
+    "deploy:check": "tsx scripts/check-deployment.ts",
+    "deploy:smoke": "tsx scripts/smoke-deployment.ts",
+    "db:migrate:remote": "pnpm deploy:check && pnpm --filter @capora/worker exec wrangler d1 migrations apply capora-db --remote",
+    "deploy": "pnpm deploy:check -- --secrets && pnpm build && pnpm --filter @capora/worker deploy && pnpm deploy:smoke",
     "lint": "eslint .",
     "format": "prettier --write ."
   },

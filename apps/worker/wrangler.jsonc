@@ -1,6 +1,7 @@
 {
   "$schema": "../../node_modules/wrangler/config-schema.json",
   "name": "capora",
+  "account_id": "fbd57977681b3edb10a9e2bb8ea4d0b4",
   "main": "src/index.ts",
   "compatibility_date": "2026-10-03",
   "compatibility_flags": ["nodejs_compat"],
@@ -14,7 +15,7 @@
     {
       "binding": "DB",
       "database_name": "capora-db",
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "f12679bc-0901-413b-9db7-7de031f48b2a",
       "migrations_dir": "../../packages/db/migrations",
     },
   ],
@@ -33,7 +34,7 @@
   },
   "triggers": { "crons": ["*/5 * * * *"] },
   "vars": {
-    "CAPORA_BASE_URL": "http://localhost:5173",
+    "CAPORA_BASE_URL": "https://capora.anirudh-makuluri.workers.dev",
     "PAYMENT_MODE": "sandbox",
     "PAYPAL_ENVIRONMENT": "sandbox",
     "DEV_MODE": "false",

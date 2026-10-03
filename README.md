@@ -149,4 +149,6 @@ The CLI reads the seeded token from ignored local credentials. After rotating th
 
 Follow [the deployment guide](docs/deployment.md): authenticate Cloudflare, provision D1/R2/Queues, replace the local database ID, configure your public base URL and secrets, apply remote migrations, seed, and deploy. A Wrangler dry-run validates the bundle and asset configuration without publishing.
 
+The GitHub workflow can automatically deploy successful `main` builds after type/lint, integration, and browser checks. Configure the `production` environment's Cloudflare secrets and enable `CLOUDFLARE_DEPLOY_ENABLED` after the first deployment is bootstrapped. Each release applies pending D1 migrations, publishes the frontend/API/MCP together, and runs read-only deployment smoke checks. See the guide for the exact one-time setup; deployment automation is disabled until that setup is complete.
+
 See [architecture and security decisions](docs/architecture.md) and [provider creation](docs/providers.md). This MVP is a single operator-controlled human workspace, with many agents and providers. It does not implement multi-user signup, live-money billing, escrow, payout settlement, arbitrary code execution, or automatic refunds. Real integrations may need stricter payload-retention controls, stronger human identity, and operator-managed payment reconciliation.
