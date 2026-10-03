@@ -283,9 +283,25 @@ kbd {
   flex-direction: column;
   z-index: 20;
   border-right: 1px solid #123327;
+  height: 100dvh;
+  overflow: hidden;
 }
 .sidebar-brand {
   margin: 0 8px 31px;
+  flex-shrink: 0;
+}
+.sidebar-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: #34503b transparent;
+  display: flex;
+  flex-direction: column;
+}
+.sidebar-scroll > * {
+  flex-shrink: 0;
 }
 .brand {
   display: flex;
@@ -444,7 +460,7 @@ kbd {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 18px 6px;
+  padding: 14px 6px;
   border-top: 1px solid #233c2e;
   font-size: 11px;
   color: #cad6c4;
@@ -456,6 +472,7 @@ kbd {
   margin-top: 3px;
 }
 .user-avatar {
+  flex-shrink: 0;
   height: 30px;
   width: 30px;
   border-radius: 50%;
@@ -466,8 +483,39 @@ kbd {
   font-size: 10px;
   font-weight: 600;
 }
-.user-row .icon-button {
-  margin-left: auto;
+.sidebar-account {
+  flex-shrink: 0;
+  padding-bottom: 16px;
+}
+.user-details {
+  min-width: 0;
+}
+.user-name {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sign-out-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #34503b;
+  border-radius: 6px;
+  background: #163126;
+  color: #cad6c4;
+  font-size: 11px;
+}
+.sign-out-button:hover {
+  background: #254532;
+  color: #f2f5e9;
+}
+.sign-out-button:focus-visible {
+  outline: 2px solid #c7ef83;
+  outline-offset: -2px;
 }
 .workspace-main {
   margin-left: 232px;

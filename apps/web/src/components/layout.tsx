@@ -81,54 +81,58 @@ function WorkspaceLayout() {
             <X size={20} />
           </button>
         </div>
-        <button className="workspace-switch" onClick={() => setConnect(true)}>
-          <span className="workspace-avatar">A</span>
-          <span>
-            Acme workspace<small>Sandbox workspace</small>
-          </span>
-          <Command size={15} />
-        </button>
-        <div className="nav-caption">WORKSPACE</div>
-        <nav>
-          {nav.map(({ to, label, icon: Icon, count }) => (
-            <NavLink
-              key={to}
-              to={to}
-              onClick={() => setMobileOpen(false)}
-              className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-            >
-              <Icon size={18} />
-              <span>{label}</span>
-              {Boolean(count) && <span className="nav-count">{count}</span>}
-            </NavLink>
-          ))}
-        </nav>
-        <div className="nav-caption nav-caption-second">BUILD WITH CAPORA</div>
-        <nav>
-          <NavLink to="/providers" onClick={() => setMobileOpen(false)} className="nav-link">
-            <Plus size={18} />
-            <span>Provider console</span>
-          </NavLink>
-          <NavLink to="/developers" onClick={() => setMobileOpen(false)} className="nav-link">
-            <Code2 size={18} />
-            <span>Developers</span>
-            <ArrowUpRight size={14} />
-          </NavLink>
-        </nav>
-        <div className="sidebar-bottom">
-          <div className="sidebar-promo">
-            <span className="promo-symbol">
-              <ShieldCheck size={22} />
+        <div className="sidebar-scroll">
+          <button className="workspace-switch" onClick={() => setConnect(true)}>
+            <span className="workspace-avatar">A</span>
+            <span>
+              Acme workspace<small>Sandbox workspace</small>
             </span>
-            <h3>Your agents. Your limits.</h3>
-            <p>Every purchase stays within the guardrails you set.</p>
-            <Link to="/agents">
-              Manage spending policies <ArrowRight size={14} />
+            <Command size={15} />
+          </button>
+          <div className="nav-caption">WORKSPACE</div>
+          <nav>
+            {nav.map(({ to, label, icon: Icon, count }) => (
+              <NavLink
+                key={to}
+                to={to}
+                onClick={() => setMobileOpen(false)}
+                className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+              >
+                <Icon size={18} />
+                <span>{label}</span>
+                {Boolean(count) && <span className="nav-count">{count}</span>}
+              </NavLink>
+            ))}
+          </nav>
+          <div className="nav-caption nav-caption-second">BUILD WITH CAPORA</div>
+          <nav>
+            <NavLink to="/providers" onClick={() => setMobileOpen(false)} className="nav-link">
+              <Plus size={18} />
+              <span>Provider console</span>
+            </NavLink>
+            <NavLink to="/developers" onClick={() => setMobileOpen(false)} className="nav-link">
+              <Code2 size={18} />
+              <span>Developers</span>
+              <ArrowUpRight size={14} />
+            </NavLink>
+          </nav>
+          <div className="sidebar-bottom">
+            <div className="sidebar-promo">
+              <span className="promo-symbol">
+                <ShieldCheck size={22} />
+              </span>
+              <h3>Your agents. Your limits.</h3>
+              <p>Every purchase stays within the guardrails you set.</p>
+              <Link to="/agents">
+                Manage spending policies <ArrowRight size={14} />
+              </Link>
+            </div>
+            <Link to="/developers" className="sidebar-help">
+              <CircleHelp size={17} /> Documentation <ExternalLink size={13} />
             </Link>
           </div>
-          <Link to="/developers" className="sidebar-help">
-            <CircleHelp size={17} /> Documentation <ExternalLink size={13} />
-          </Link>
+        </div>
+        <div className="sidebar-account">
           <div className="user-row">
             <span className="user-avatar">
               {session?.user.name
@@ -138,24 +142,26 @@ function WorkspaceLayout() {
                 .join('')
                 .toUpperCase()}
             </span>
-            <span>
-              {session?.user.name}
+            <span className="user-details">
+              <span className="user-name" title={session?.user.name}>
+                {session?.user.name}
+              </span>
               <small>Workspace owner</small>
             </span>
-            {!session?.localDemo && (
-              <button
-                className="icon-button"
-                aria-label="Sign out"
-                onClick={async () => {
-                  await api('/auth/sign-out', { method: 'POST', body: {} });
-                  client.clear();
-                  window.location.assign('/login');
-                }}
-              >
-                <LogOut size={16} />
-              </button>
-            )}
           </div>
+          {!session?.localDemo && (
+            <button
+              className="sign-out-button"
+              onClick={async () => {
+                await api('/auth/sign-out', { method: 'POST', body: {} });
+                client.clear();
+                window.location.assign('/login');
+              }}
+            >
+              <LogOut size={16} />
+              Sign out
+            </button>
+          )}
         </div>
       </aside>
       {mobileOpen && <div className="nav-scrim" onClick={() => setMobileOpen(false)} />}
