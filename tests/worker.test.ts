@@ -5,7 +5,8 @@ import { resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import { seedCapabilities, outputSchema } from '../scripts/seed-data';
+import { seedCapabilities, outputSchema } from './fixtures/catalog';
+import { builtinCapabilities, builtinOutputSchema } from '../packages/provider-sdk/src/index';
 import type { Purchase, Quote, Invocation, Budget, Job } from '../packages/types/src/index';
 import { R2_BUDGET } from '../packages/config/src/index';
 import { hashPassword } from '../apps/worker/src/lib/password';
@@ -142,6 +143,38 @@ beforeAll(async () => {
       )
       .run();
   }
+  for (const c of builtinCapabilities) {
+    await db
+      .prepare(
+        'INSERT INTO providers(id,user_id,name,description,reputation,created_at) VALUES (?,?,?,?,?,?)',
+      )
+      .bind(`provider_${c.id}`, 'user_test', 'Capora', c.description, 0, now)
+      .run();
+    await db
+      .prepare(
+        'INSERT INTO capabilities(id,provider_id,name,description,type,category,price_cents,pricing_unit,input_schema,output_schema,endpoint,expected_latency_ms,baseline_reliability,tags,async,synthetic,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+      )
+      .bind(
+        c.id,
+        `provider_${c.id}`,
+        c.name,
+        c.description,
+        c.type,
+        c.category,
+        c.priceCents,
+        'query',
+        JSON.stringify(c.schema),
+        JSON.stringify(builtinOutputSchema(c)),
+        `builtin://${c.id}`,
+        c.latency,
+        0,
+        JSON.stringify(c.tags),
+        c.async ? 1 : 0,
+        0,
+        now,
+      )
+      .run();
+  }
 });
 beforeEach(async () => {
   const db = await mf.getD1Database('DB');
@@ -174,6 +207,58 @@ afterAll(async () => {
 });
 
 describe('Actual Worker, D1, R2, Queues, and MCP integration', () => {
+  it('retires fixture sales while preserving existing paid entitlements and records', async () => {
+    const input = { company: 'Legacy purchase' };
+    const q = await quote('datapulse_headcount', input);
+    const purchase = (await buy(q.id)).data;
+    const db = await mf.getD1Database('DB');
+    const migration = await readFile('packages/db/migrations/0004_real_capabilities.sql', 'utf8');
+    for (const statement of migration.split(';').filter((s) => s.trim())) await db.prepare(statement).run();
+    expect(
+      (await request('/agents/agent_test/quotes', { capability_id: 'datapulse_headcount', input })).status,
+    ).toBe(404);
+    expect(
+      (await request<Record<string, unknown>[]>('/capabilities')).data.some(
+        (c) => c.id === 'datapulse_headcount',
+      ),
+    ).toBe(false);
+    const invocation = (
+      await request<Invocation>('/agents/agent_test/invocations', { purchase_id: purchase.id, input })
+    ).data;
+    expect(invocation.status).toBe('completed');
+    expect(invocation.result).toMatchObject({ synthetic: true });
+    expect((await request<Purchase>(`/agents/agent_test/purchases/${purchase.id}`)).data.id).toBe(
+      purchase.id,
+    );
+  });
+  it('rejects invalid built-in inputs before creating a quote or reserving money', async () => {
+    const result = await request('/agents/agent_test/quotes', {
+      capability_id: 'github_repository',
+      input: { repository: 'https://localhost/admin' },
+    });
+    expect(result.status).toBe(400);
+    const db = await mf.getD1Database('DB');
+    expect(await db.prepare('SELECT COUNT(*) FROM quotes').first('COUNT(*)')).toBe(0);
+    expect((await request<Budget>('/agents/agent_test/budget')).data.reservedCents).toBe(0);
+  });
+  it('delivers a purchased real code scan through the queue', async () => {
+    const input = { code: 'const x = 1;\neval(req.body.code);' };
+    const q = await quote('code_scan', input);
+    const p = (await buy(q.id)).data;
+    expect(p.status).toBe('pending_approval');
+    await request(`/approvals/${p.id}`, { approve: true });
+    const inv = (await request<Invocation>('/agents/agent_test/invocations', { purchase_id: p.id, input }))
+      .data;
+    expect(inv.jobId).toBeTruthy();
+    await vi.waitFor(async () => {
+      const job = (await request<Job>(`/agents/agent_test/jobs/${inv.jobId}`)).data;
+      expect(job.status).toBe('completed');
+      expect(job.result).toMatchObject({
+        synthetic: false,
+        data: { linesAnalyzed: 2, findings: [{ rule: 'unsafe-eval', line: 2 }] },
+      });
+    });
+  });
   it('serves competing capability options without credentials', async () => {
     const result = await request<Record<string, unknown>[]>(
       '/capabilities?query=private%20company%20headcount',
@@ -570,14 +655,14 @@ describe('Actual Worker, D1, R2, Queues, and MCP integration', () => {
       const options = extract<Record<string, unknown>[]>(
         await client.callTool({
           name: 'search_capabilities',
-          arguments: { query: 'private company headcount', max_budget: 5 },
+          arguments: { query: 'document fingerprint', max_budget: 5 },
         }),
       );
-      expect(options.length).toBeGreaterThanOrEqual(2);
+      expect(options.length).toBeGreaterThanOrEqual(1);
       const q = extract<Quote>(
         await client.callTool({
           name: 'get_quote',
-          arguments: { capability_id: 'datapulse_headcount', input: { company: 'Acme Robotics' } },
+          arguments: { capability_id: 'document_fingerprint', input: { text: 'abc' } },
         }),
       );
       const p = extract<Purchase>(
@@ -587,12 +672,16 @@ describe('Actual Worker, D1, R2, Queues, and MCP integration', () => {
       const inv = extract<Invocation>(
         await client.callTool({
           name: 'invoke_capability',
-          arguments: { purchase_id: p.id, input: { company: 'Acme Robotics' } },
+          arguments: { purchase_id: p.id, input: { text: 'abc' } },
         }),
       );
       expect(inv.status).toBe('completed');
+      expect(inv.result).toMatchObject({
+        synthetic: false,
+        data: { sha256: 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad', bytes: 3 },
+      });
       const budget = extract<Budget>(await client.callTool({ name: 'get_budget', arguments: {} }));
-      expect(budget.spentTodayCents).toBe(20);
+      expect(budget.spentTodayCents).toBe(10);
     } finally {
       await client.close();
     }

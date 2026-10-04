@@ -80,7 +80,7 @@ Remote seeding generates a separate random seeded-agent token under ignored `.lo
 
 `pnpm build` includes `wrangler deploy --dry-run`: it checks bundling and asset configuration but cannot confirm remote resources, account permissions, secrets, or PayPal access. `pnpm deploy` checks config and secret names, builds, publishes, and runs read-only smoke checks. Run `pnpm db:migrate:remote` separately before a manual deployment that introduces migrations.
 
-Seeding is a one-time bootstrap step, never part of automated deployments. Keep seeded-agent credentials in secret storage, or revoke/regenerate the token through My agents once you sign in. Automated deployments preserve users, agent tokens, payment tokens, and history.
+Seeding is a one-time bootstrap step, never part of automated deployments. Keep seeded-agent credentials in secret storage, or revoke/regenerate the token through My agents once you sign in. Automated deployments preserve users, agent tokens, payment tokens, and history. Migration 0004 retires the old fixture catalog and installs the six real capabilities in an existing seeded workspace.
 
 ## 5. Enable automatic deployments
 
@@ -119,7 +119,7 @@ Sources: [Worker static assets](https://developers.cloudflare.com/workers/static
 4. Create an agent and connect an official MCP client with its token to `https://YOUR_HOST/mcp`.
 5. Complete saved PayPal Wallet setup if the merchant supports it, or use standard Sandbox checkout.
 6. Make a $0.20 purchase. Confirm the capture ID in both Capora and the PayPal Sandbox merchant dashboard.
-7. Invoke DataPulse and inspect the synthetic result and transaction details.
+7. Invoke Company Registry Search and inspect its live source records, links, retrieval time and transaction details.
 8. Request a $3.00 SecureScan purchase, approve it as the workspace owner, complete payment, and poll the queue job.
 9. Confirm $3.20 spent, no leftover reservation, and both provider invocation records.
 10. Revoke the agent token and confirm subsequent MCP calls return 401.

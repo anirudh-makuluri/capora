@@ -2,7 +2,7 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { createHash, randomBytes } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
-import { seedCapabilities, outputSchema } from './seed-data';
+import { seedCapabilities, builtinOutputSchema } from './seed-data';
 import { hashPassword } from '../apps/worker/src/lib/password';
 
 const root = resolve(import.meta.dirname, '..');
@@ -39,10 +39,13 @@ if (!remote) {
 for (const cap of seedCapabilities) {
   const providerId = `provider_${cap.id}`;
   statements.push(
-    `INSERT INTO providers (id,user_id,name,description,reputation,created_at) VALUES (${q(providerId)},'user_demo',${q(cap.provider)},${q(cap.description)},${cap.reputation},${q(now)}) ON CONFLICT DO NOTHING;`,
+    `INSERT INTO providers (id,user_id,name,description,reputation,created_at) VALUES (${q(providerId)},'user_demo','Capora',${q(cap.description)},0,${q(now)}) ON CONFLICT DO NOTHING;`,
   );
   statements.push(`INSERT INTO capabilities (id,provider_id,name,description,type,category,price_cents,pricing_unit,input_schema,output_schema,endpoint,expected_latency_ms,baseline_reliability,tags,async,synthetic,created_at)
-    VALUES (${[cap.id, providerId, cap.name, cap.description, cap.type, cap.category].map(q).join(',')},${cap.priceCents},${q(cap.pricingUnit)},${q(cap.schema)},${q(outputSchema)},${q(`demo://${cap.id}`)},${cap.latency},${cap.reliability},${q(cap.tags)},${cap.async ? 1 : 0},1,${q(now)}) ON CONFLICT DO NOTHING;`);
+    VALUES (${[cap.id, providerId, cap.name, cap.description, cap.type, cap.category].map(q).join(',')},${cap.priceCents},'query',${q(cap.schema)},${q(builtinOutputSchema(cap))},${q(`builtin://${cap.id}`)},${cap.latency},0,${q(cap.tags)},${cap.async ? 1 : 0},0,${q(now)}) ON CONFLICT DO NOTHING;`);
+  statements.push(
+    `UPDATE capabilities SET documentation_url=${q(cap.documentationUrl)},availability=0 WHERE id=${q(cap.id)} AND endpoint=${q(`builtin://${cap.id}`)};`,
+  );
 }
 const seedPath = resolve(root, '.local/seed.sql');
 await writeFile(seedPath, statements.join('\n'));
@@ -64,5 +67,5 @@ const result = spawnSync(
 );
 if (result.status !== 0) process.exit(result.status ?? 1);
 console.log(
-  `Seeded ${seedCapabilities.length} synthetic capabilities, a workspace, and a buyer agent. Existing records preserved.`,
+  `Seeded ${seedCapabilities.length} real capabilities, a workspace, and a buyer agent. Existing records preserved.`,
 );

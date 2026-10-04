@@ -27,7 +27,7 @@ export function Demo() {
   const { data } = useDashboard();
   const [steps, setSteps] = useState<Step[]>([]);
   const [candidates, setCandidates] = useState<Capability[]>([]);
-  const [employment, setEmployment] = useState<Invocation>();
+  const [research, setResearch] = useState<Invocation>();
   const [securityPurchase, setSecurityPurchase] = useState<Purchase>();
   const [securityInvocation, setSecurityInvocation] = useState<Invocation>();
   const securityClaim = useRef(false);
@@ -39,32 +39,30 @@ export function Demo() {
     if (!activeAgent) throw new Error('Create an active agent first.');
     setSteps([]);
     setCandidates([]);
-    setEmployment(undefined);
+    setResearch(undefined);
     setSecurityPurchase(undefined);
     setSecurityInvocation(undefined);
     securityClaim.current = false;
     addStep({
       name: 'A limitation becomes a possibility',
       tool: 'task',
-      detail: 'The agent needs private employment intelligence to evaluate Arizona expansion.',
+      detail: 'The agent needs company identity records from the live GLEIF registry.',
     });
-    const options = await api<Capability[]>(
-      '/capabilities?query=private%20company%20hiring%20headcount&sort=price',
-    );
-    setCandidates(options.filter((c) => ['datapulse_headcount', 'companyintel_premium'].includes(c.id)));
+    const options = await api<Capability[]>('/capabilities?query=company%20registry&sort=price');
+    setCandidates(options.filter((c) => ['gleif_entities'].includes(c.id)));
     addStep({
-      name: 'Compare the cost of confidence',
+      name: 'Inspect the source and price',
       tool: 'search_capabilities',
       detail:
-        'DataPulse costs $0.20; CompanyIntel costs $1.50. An exploratory task can use the lower-cost source.',
+        'Company Registry Search costs $0.20 for a live GLEIF query with structured entity records and source links.',
     });
-    const input = { company: 'Acme Robotics', region: 'Arizona', timeRange: '2026-Q3' };
+    const input = { company: 'Microsoft', limit: 5 };
     const quote = await api<Quote>(`/agents/${activeAgent.id}/quotes`, {
       method: 'POST',
       body: {
-        capability_id: 'datapulse_headcount',
+        capability_id: 'gleif_entities',
         input,
-        reason: 'Evaluate whether Acme Robotics is expanding into Arizona using private employment signals.',
+        reason: 'Retrieve legal entity records for Microsoft from GLEIF.',
       },
     });
     addStep({
@@ -83,34 +81,32 @@ export function Demo() {
     });
     if (purchase.status !== 'purchased')
       throw new Error(
-        'The employment purchase needs approval or payment. Complete it in Transactions, then run again.',
+        'The research purchase needs approval or payment. Complete it in Transactions, then invoke that purchase there.',
       );
     const result = await api<Invocation>(`/agents/${activeAgent.id}/invocations`, {
       method: 'POST',
       body: { purchase_id: purchase.id, input },
     });
-    setEmployment(result);
+    setResearch(result);
     if (result.status === 'failed') throw new Error(result.error ?? 'Provider execution failed.');
     addStep({
       name: 'The capability actually runs',
       tool: 'invoke_capability',
-      detail: `Employment intelligence returned in ${latency(result.latencyMs ?? 0)}. Provider credentials stayed inside Capora.`,
+      detail: `Research intelligence returned in ${latency(result.latencyMs ?? 0)}. Provider credentials stayed inside Capora.`,
     });
     return result;
   });
   const requestSecurity = useAction(async () => {
     if (!activeAgent) throw new Error('No active agent.');
     const input = {
-      repository: 'acme-robotics/control-plane',
       code: 'const query = `SELECT * FROM users WHERE id = ${req.query.id}`;\neval(req.body.code);',
     };
     const quote = await api<Quote>(`/agents/${activeAgent.id}/quotes`, {
       method: 'POST',
       body: {
-        capability_id: 'securescan_advanced',
+        capability_id: 'code_scan',
         input,
-        reason:
-          'Before evaluating the acquisition, I need specialized static analysis of the control-plane code. This exceeds my auto-approval threshold.',
+        reason: 'Run the pattern scanner on the supplied code. This exceeds my auto-approval threshold.',
       },
     });
     const purchase = await api<Purchase>(`/agents/${activeAgent.id}/purchases`, {
@@ -121,7 +117,7 @@ export function Demo() {
     addStep({
       name: 'The human stays in control',
       tool: 'purchase_capability',
-      detail: `$3.00 security analysis · ${purchase.status.replaceAll('_', ' ')} · exceeds the default $0.50 automatic threshold`,
+      detail: `$3.00 code pattern scan · ${purchase.status.replaceAll('_', ' ')} · exceeds the default $0.50 automatic threshold`,
     });
     return purchase;
   });
@@ -162,7 +158,7 @@ export function Demo() {
         <div>
           <div className="eyebrow">WATCH THE CAPABILITY LOOP CLOSE</div>
           <h1>A task. A missing piece. A new capability.</h1>
-          <p>Follow the acquisition demo, from discovery to a result your agent can use.</p>
+          <p>Follow the research flow, from discovery to a result your agent can use.</p>
         </div>
         <Button variant="secondary" asChild>
           <Link to="/developers">
@@ -173,7 +169,7 @@ export function Demo() {
       <div className="demo-disclosure">
         <Terminal size={17} />
         <span>
-          Scripted playground · calls the same services as MCP · synthetic data ·{' '}
+          Scripted playground · calls the same services as MCP · live source data and computed tools ·{' '}
           {data?.paymentMode === 'demo' ? 'simulated local payments' : 'PayPal Sandbox'}
         </span>
       </div>
@@ -184,20 +180,20 @@ export function Demo() {
               <Badge tone="green">
                 <Bot size={13} /> {activeAgent?.name ?? 'No active agent'}
               </Badge>
-              <span className="muted small">ACQUISITION RESEARCH</span>
+              <span className="muted small">COMPANY RESEARCH</span>
             </div>
             <h2>
-              “Evaluate whether Acme Robotics
+              “Find Microsoft legal entities
               <br />
-              is expanding into Arizona.”
+              in the GLEIF registry.”
             </h2>
             <p>
-              Public research can surface announcements. It can’t reproduce a licensed, private employment
-              panel.
+              The agent buys a live registry query and receives source-backed records it can use in its
+              research.
             </p>
             <Button busy={run.isPending} disabled={!activeAgent} onClick={() => run.mutate()}>
               {steps.length ? <RotateCw size={15} /> : <Play size={15} />}{' '}
-              {steps.length ? 'Start a new run' : 'Run the acquisition demo'} <ArrowRight size={16} />
+              {steps.length ? 'Start a new run' : 'Run the research flow'} <ArrowRight size={16} />
             </Button>
           </div>
           <ErrorNotice error={run.error ?? requestSecurity.error ?? executeSecurity.error ?? job.error} />
@@ -229,39 +225,41 @@ export function Demo() {
           )}
           {Boolean(candidates.length) && (
             <div className="demo-options">
-              <h3>The cost of confidence</h3>
+              <h3>The capability and its cost</h3>
               {candidates.map((c) => (
                 <div className="demo-option" key={c.id}>
                   <ProviderIcon capability={c} />
                   <div>
                     <strong>{c.provider}</strong>
                     <small>
-                      {c.reliability}% reliability · {latency(c.expectedLatencyMs)}
+                      {c.successCount + c.failureCount
+                        ? `${c.reliability}% reliability`
+                        : 'Reliability unmeasured'}{' '}
+                      · {latency(c.expectedLatencyMs)}
                     </small>
                   </div>
                   <strong>{money(c.priceCents)}</strong>
-                  {c.id === 'datapulse_headcount' && <Badge tone="green">Selected</Badge>}
+                  {c.id === 'gleif_entities' && <Badge tone="green">Selected</Badge>}
                 </div>
               ))}
             </div>
           )}
-          {employment?.status === 'completed' && (
+          {research?.status === 'completed' && (
             <div className="demo-answer">
               <div className="section-heading">
                 <span>
                   <Sparkles size={17} /> A result the agent can use
                 </span>
-                <Badge tone="amber">Synthetic fixture</Badge>
+                <Badge tone="green">Live source data</Badge>
               </div>
-              <h3>The signals point to Arizona expansion.</h3>
+              <h3>Registry query completed.</h3>
               <p>
-                The demo employment panel reports Arizona headcount growing from <strong>21 to 38</strong>{' '}
-                over three months, with <strong>12 regional roles</strong> open. Those signals support the
-                expansion thesis, subject to further diligence.
+                The purchased result below contains the records returned by GLEIF, source links and the
+                retrieval time. An empty list means the source found no matching LEI records.
               </p>
               <details>
                 <summary>Inspect the structured provider result</summary>
-                <CodeBlock>{JSON.stringify(employment.result, null, 2)}</CodeBlock>
+                <CodeBlock>{JSON.stringify(research.result, null, 2)}</CodeBlock>
               </details>
             </div>
           )}
@@ -293,7 +291,7 @@ export function Demo() {
             <p>Small purchases flow automatically. Bigger decisions stay with you.</p>
           </section>
           <section className="panel demo-security">
-            <Badge tone="amber">DEMO PART 02</Badge>
+            <Badge tone="amber">STEP 02</Badge>
             <h2>Now, raise the stakes.</h2>
             <p>
               The agent needs a $3.00 security analysis. It crosses the approval threshold, so the human makes
@@ -303,7 +301,7 @@ export function Demo() {
               variant="secondary"
               className="full-width"
               busy={requestSecurity.isPending}
-              disabled={!employment || Boolean(securityPurchase)}
+              disabled={research?.status !== 'completed' || Boolean(securityPurchase)}
               onClick={() => requestSecurity.mutate()}
             >
               Request security analysis <ArrowRight size={15} />
@@ -334,7 +332,7 @@ export function Demo() {
       {job.data && (
         <section className="panel job-result">
           <div className="panel-heading">
-            <h2>Security analysis result</h2>
+            <h2>Code pattern scan result</h2>
             <Status status={job.data.status} />
           </div>
           <div className="panel-padding">

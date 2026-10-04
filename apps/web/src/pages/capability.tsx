@@ -49,12 +49,16 @@ export function CapabilityDetail() {
           <div className="detail-trust">
             <span>
               <ShieldCheck size={18} />
-              <strong>{capability.reliability}%</strong>
+              <strong>
+                {capability.successCount + capability.failureCount || capability.reliability
+                  ? `${capability.reliability}%`
+                  : 'Unmeasured'}
+              </strong>
               <small>Reliability</small>
             </span>
             <span>
               <Star size={18} />
-              <strong>{capability.reputation.toFixed(1)} / 5</strong>
+              <strong>{capability.reputation ? `${capability.reputation.toFixed(1)} / 5` : 'Unrated'}</strong>
               <small>Provider reputation</small>
             </span>
             <span>

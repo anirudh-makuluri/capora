@@ -18,6 +18,7 @@ import { getCapabilityRecord, getCapability } from './catalog';
 import { evaluatePolicy } from './policy';
 import { PaymentError, PayPalSandbox, receiptFromOrder } from './payments';
 import type { Env } from '../env';
+import { validateBuiltinInput } from '../providers/live';
 
 export async function getBudget(env: Env, agentId: string): Promise<Budget> {
   const policy = await drizzle(env.DB)
@@ -49,6 +50,7 @@ export async function createQuote(
 ): Promise<Quote> {
   const capability = await getCapabilityRecord(env, capabilityId);
   validatePayload(capability.inputSchema, input);
+  if (capability.endpoint.startsWith('builtin://')) validateBuiltinInput(capability.endpoint, input);
   const budget = await getBudget(env, agentId);
   const now = new Date();
   const row = {

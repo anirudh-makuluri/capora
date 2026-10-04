@@ -44,12 +44,12 @@ export function ProviderIcon({
   large?: boolean;
 }) {
   const ids = [
-    'datapulse_headcount',
-    'companyintel_premium',
-    'verifycorp',
-    'securescan_advanced',
-    'legalarchive',
-    'geointel',
+    'gleif_entities',
+    'crossref_research',
+    'document_fingerprint',
+    'code_scan',
+    'worldbank_indicators',
+    'github_repository',
     'retail_demand',
     'documentverify',
     'supplychain_radar',

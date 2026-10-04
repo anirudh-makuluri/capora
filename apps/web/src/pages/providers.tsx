@@ -109,7 +109,9 @@ export function Providers() {
                     <small className="payment-kind">per {c.pricingUnit}</small>
                   </td>
                   <td>
-                    {c.reliability}% reliability
+                    {c.successCount + c.failureCount || c.reliability
+                      ? `${c.reliability}% reliability`
+                      : 'Reliability unmeasured'}
                     <small className="payment-kind">
                       {c.successCount + c.failureCount} runs ·{' '}
                       {latency(c.avgLatencyMs || c.expectedLatencyMs)}
@@ -422,7 +424,7 @@ function CapabilityForm({ initial, onClose }: { initial?: ProviderCapability; on
         </div>
         <Field
           label="Provider endpoint"
-          hint="HTTPS hostnames require operator approval. Demo: demo://datapulse_headcount. Datasets can use an uploaded R2 object."
+          hint="HTTPS hostnames require operator approval. Built-in tools use builtin:// identifiers. Datasets can use an uploaded R2 object."
         >
           <input
             required

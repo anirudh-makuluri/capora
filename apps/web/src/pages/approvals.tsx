@@ -86,11 +86,19 @@ export function ApprovalCard({ purchase }: { purchase: Purchase }) {
         </span>
         <span>
           <ShieldCheck size={14} />
-          {capability ? `${capability.reliability}% reliability` : 'Reliability unavailable'}
+          {capability
+            ? capability.successCount + capability.failureCount || capability.reliability
+              ? `${capability.reliability}% reliability`
+              : 'Reliability unmeasured'
+            : 'Reliability unavailable'}
         </span>
         <span>
           <Star size={14} />
-          {capability ? `${capability.reputation.toFixed(1)} reputation` : 'Reputation unavailable'}
+          {capability
+            ? capability.reputation
+              ? `${capability.reputation.toFixed(1)} reputation`
+              : 'Provider unrated'
+            : 'Reputation unavailable'}
         </span>
       </div>
       <ErrorNotice error={resolve.error} />

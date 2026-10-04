@@ -50,7 +50,7 @@ Choose Dataset and upload a JSON object using the console's dataset control. It 
 
 Edit a capability to change its price, schemas, endpoint, authentication, latency, tags, or execution mode. The version increments, invalidating old unpurchased quotes. Disable prevents new discovery/purchases and unstarted execution. Credentials are never displayed again; the console shows whether one is present.
 
-The console reports actual purchase revenue, invocation success/failure counts, and average observed latency. Seed trust values are illustrative synthetic baselines; once a capability runs, reliability is its measured success fraction. The displayed revenue is a marketplace ledger, not an executed provider payout. Availability is provider-declared metadata, not an independently verified SLA.
+The console reports actual purchase revenue, invocation success/failure counts, and average observed latency. Built-in listings start with unmeasured reliability and unrated reputation; once a capability runs, reliability is its measured success fraction. The displayed revenue is a marketplace ledger, not an executed provider payout. Availability is provider-declared metadata, not an independently verified SLA.
 
 ## SDK
 
@@ -68,4 +68,4 @@ const inputSchema = {
 validatePayload(inputSchema, { sku: 'ACME-123' });
 ```
 
-Use the same schema at registration and in your provider. Demo endpoints live in `apps/worker/src/providers/demo.ts`; every seed is explicitly synthetic, and `demoFailure: true` exercises a controlled provider error. SecureScan additionally evaluates supplied code against a few deterministic rules; it does not clone or comprehensively audit an arbitrary repository.
+Use the same schema at registration and in your provider. The default catalog uses the source adapters and computed tools in `apps/worker/src/providers/live.ts`. See [real capabilities](real-capabilities.md) for supported inputs and source limitations. `demo://` endpoints remain for isolated fault-injection tests and old paid fixture purchases, and remain explicitly synthetic.

@@ -31,7 +31,7 @@ export async function handleMcp(
     { name: 'Capora', version: '0.1.0' },
     {
       instructions:
-        'Capora brokers real machine capabilities. Discover, inspect schemas, quote exact input, purchase under budget policy, then invoke after payment completes. Synthetic demo capabilities are explicitly labeled. All money is USD cents. Poll get_purchase_status for approvals and get_job for async execution.',
+        'Capora brokers real machine capabilities. Discover, inspect schemas, quote exact input, purchase under budget policy, then invoke after payment completes. Built-in capabilities return live source data or compute results from supplied content. Public data listings sell retrieval and normalization. Inspect limitations and source timestamps. All money is USD cents. Poll get_purchase_status for approvals and get_job for async execution.',
     },
   );
   const call = async (fn: () => Promise<unknown>) => {

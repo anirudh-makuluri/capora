@@ -54,25 +54,29 @@ export function useAction<T, V>(fn: (variables: V) => Promise<T>) {
   });
 }
 export function exampleInput(capability: Capability): Record<string, unknown> {
-  const props = capability.inputSchema.properties as Record<string, { type?: string }> | undefined;
-  const defaults: Record<string, unknown> = {
-    company: 'Acme Robotics',
-    region: 'Arizona',
-    query: 'robotics',
-    repository: 'acme-robotics/control-plane',
-    code: 'const query = `SELECT * FROM users WHERE id = ${req.query.id}`;\neval(req.body.code);',
-    document: 'synthetic-commercial-filing.pdf',
-    timeRange: '2026-Q3',
-  };
+  const props = capability.inputSchema.properties as
+    Record<string, { type?: string; default?: unknown; enum?: unknown[] }> | undefined;
+  const required = capability.inputSchema.required as string[] | undefined;
   return Object.fromEntries(
     Object.entries(props ?? {})
-      .filter(([key]) => key !== 'demoFailure')
+      .filter(([key, schema]) => required?.includes(key) || schema.default !== undefined)
       .map(([key, schema]) => [
         key,
-        defaults[key] ?? (schema.type === 'number' ? 1 : schema.type === 'boolean' ? false : 'example'),
+        schema.default ??
+          schema.enum?.[0] ??
+          (schema.type === 'integer' || schema.type === 'number'
+            ? 1
+            : schema.type === 'boolean'
+              ? false
+              : schema.type === 'object'
+                ? {}
+                : schema.type === 'array'
+                  ? []
+                  : 'example'),
       ]),
   );
 }
+
 export const time = (value: string) =>
   new Date(value).toLocaleString('en-US', {
     month: 'short',

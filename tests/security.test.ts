@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { canonical, hash, seal, unseal } from '../apps/worker/src/lib/crypto';
 import { validateEndpoint, boundedJson, invokeProvider } from '../apps/worker/src/services/gateway';
 import { validatePayload, validateSchemaDefinition } from '../packages/provider-sdk/src/index';
-import { companySchema, outputSchema } from '../scripts/seed-data';
+import { companySchema, outputSchema } from './fixtures/catalog';
 import type { Env } from '../apps/worker/src/env';
 import type { capabilities } from '../packages/db/src/index';
 
@@ -66,5 +66,27 @@ describe('Gateway and credential boundaries', () => {
     await expect(invokeProvider(env, capability, 'inv-test', { company: 'Acme' })).rejects.toMatchObject({
       code: 'PROVIDER_TIMEOUT',
     });
+  });
+  it('uses Workers-compatible manual redirects and rejects them without following', async () => {
+    const env = { PROVIDER_ALLOWED_HOSTS: 'api.provider.example' } as Env;
+    const capability = {
+      endpoint: 'https://api.provider.example/query',
+      type: 'api',
+      inputSchema: companySchema,
+      outputSchema,
+      httpMethod: 'POST',
+      secretEncrypted: null,
+    } as typeof capabilities.$inferSelect;
+    const fetcher = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(null, { status: 302, headers: { Location: 'https://127.0.0.1/private' } }),
+      );
+    vi.stubGlobal('fetch', fetcher);
+    await expect(invokeProvider(env, capability, 'inv-test', { company: 'Acme' })).rejects.toMatchObject({
+      code: 'PROVIDER_FAILURE',
+    });
+    expect(fetcher).toHaveBeenCalledOnce();
+    expect(fetcher.mock.calls[0][1]).toMatchObject({ redirect: 'manual' });
   });
 });

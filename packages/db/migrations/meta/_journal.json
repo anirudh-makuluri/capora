@@ -29,6 +29,13 @@
       "when": 1791065766873,
       "tag": "0003_melted_inertia",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1791077602167,
+      "tag": "0004_real_capabilities",
+      "breakpoints": true
     }
   ]
 }
