@@ -74,7 +74,7 @@ export function Marketplace() {
             what they need<span>.</span>
           </h2>
           <p>
-            Proprietary data. Powerful APIs. Specialized tools.
+            Source-backed data. Powerful APIs. Specialized tools.
             <br />
             One marketplace. One MCP connection.
           </p>
@@ -254,7 +254,6 @@ export function Marketplace() {
                   <div className="provider-line">
                     {c.provider}
                     <ShieldCheck size={12} />
-                    {c.id === 'datapulse_headcount' && <span className="popular-label">POPULAR</span>}
                   </div>
                   <h3>{c.name}</h3>
                   <p className="cap-description">{c.description}</p>
@@ -262,7 +261,12 @@ export function Marketplace() {
                   <div className="cap-metrics">
                     <span title="Reliability: measured after invocations; provider baseline before first execution">
                       <ShieldCheck size={13} />
-                      <strong>{c.reliability}%</strong> reliability
+                      <strong>
+                        {c.successCount + c.failureCount || c.reliability
+                          ? `${c.reliability}%`
+                          : 'Unmeasured'}
+                      </strong>{' '}
+                      reliability
                     </span>
                     <span>
                       <Clock3 size={13} />
@@ -270,7 +274,7 @@ export function Marketplace() {
                     </span>
                     <span>
                       <Star size={13} />
-                      {c.reputation.toFixed(1)}
+                      {c.reputation ? c.reputation.toFixed(1) : 'Unrated'}
                     </span>
                   </div>
                   <div className="cap-price-row">

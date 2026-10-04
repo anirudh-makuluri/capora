@@ -195,7 +195,7 @@ function WorkspaceLayout() {
         </main>
         <footer className="workspace-footer">
           <span>
-            <span className="status-dot" /> Capora sandbox · synthetic provider data
+            <span className="status-dot" /> Capora · source-backed data and tools
           </span>
           <Link to="/developers">
             Built for what comes next <ArrowUpRight size={12} />

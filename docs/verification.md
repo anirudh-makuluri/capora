@@ -46,3 +46,22 @@ Both capture IDs, amounts, currencies, and `COMPLETED` statuses were independent
 - Automated accessibility checks and screenshot review do not establish complete manual accessibility conformance.
 
 Remote payment/capture and paid Queue execution still require the end-to-end checks in [deployment.md](deployment.md) and [paypal.md](paypal.md). Hosting/authentication/storage/MCP checks do not prove those external payment flows.
+
+## Real catalog replacement — 2026-10-03
+
+- Local migration retired the ten bootstrap fixture listings and installed six real capabilities. Historical payments/results remain intact; old paid fixture entitlements still return their original explicitly synthetic output. New quotes cannot target retired listings.
+- Read-only direct checks returned live GLEIF entity records, Crossref research metadata, World Bank observations and GitHub repository metadata. Known scanner and SHA-256 inputs produced computed results.
+- The official HTTP MCP client purchased and invoked all six capabilities in a disposable local Worker/D1/R2/Queues workspace with simulated payments. The GLEIF query returned real records; the $3.00 code scan required owner approval and completed through the queue. The separate four-capability check returned live Crossref, World Bank and GitHub data plus the known `abc` fingerprint. No upstream fixtures were substituted.
+- The live Worker check exposed unsupported `redirect: "error"` handling. The gateway now uses `manual`, rejects non-2xx responses including redirects, and has regression coverage preventing a second fetch to a redirect target.
+- Type checking, linting, frontend build, Wrangler dry-run, 92 isolated unit/integration tests and eight Chromium browser tests passed. Browser checks exercised purchasing/invoking the actual fingerprint tool and approving/invoking the actual queued code scanner, alongside authentication and responsive layout.
+- This verifies local execution and real source responses, not a remote release or live-money commerce. The hosted catalog still requires an authorized deployment of this change and migration. Payments remain PayPal Sandbox or the explicit local simulator.
+
+See [real capabilities](real-capabilities.md) for input examples, source rights and limitations.
+
+## Capability modules and registry — 2026-10-04
+
+- All six capabilities now own their metadata, schemas, semantic validation and execution in individual files. The registry supplies both execution lookup and D1 catalog metadata; marketplace and MCP discovery read the synced catalog.
+- Local catalog-only sync and normal seeding passed. Integration checks verify unchanged syncs preserve versions, changed metadata invalidates stale quotes, and sync preserves disabled status, observed usage and agent credentials.
+- Type checking, linting, production frontend build, Wrangler dry-run, 95 unit/integration tests and eight Chromium browser tests passed. Registry tests exercise a new handler through the shared dispatcher and verify input/output validation and output-size enforcement.
+- Read-only checks against all six handlers returned live GLEIF, Crossref, World Bank and GitHub responses, plus computed scanner and fingerprint results. Browser checks completed purchasing/invoking the fingerprint and approving/queuing the scanner with simulated payments.
+- These checks used local/disposable storage. This refactor has not been deployed remotely.

@@ -5,7 +5,8 @@ import { resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import { seedCapabilities, outputSchema } from '../scripts/seed-data';
+import { seedCapabilities, outputSchema } from './fixtures/catalog';
+import { catalogStatements, seedCapabilities as registeredMetadata } from '../scripts/seed-data';
 import type { Purchase, Quote, Invocation, Budget, Job } from '../packages/types/src/index';
 import { R2_BUDGET } from '../packages/config/src/index';
 import { hashPassword } from '../apps/worker/src/lib/password';
@@ -142,6 +143,7 @@ beforeAll(async () => {
       )
       .run();
   }
+  for (const statement of catalogStatements('user_test', now)) await db.prepare(statement).run();
 });
 beforeEach(async () => {
   const db = await mf.getD1Database('DB');
@@ -174,6 +176,106 @@ afterAll(async () => {
 });
 
 describe('Actual Worker, D1, R2, Queues, and MCP integration', () => {
+  it('syncs registered metadata for discovery, preserves usage, and invalidates changed quotes', async () => {
+    const db = await mf.getD1Database('DB');
+    const sync = async () => {
+      for (const statement of catalogStatements('user_test', new Date().toISOString()))
+        await db.prepare(statement).run();
+    };
+    const catalog = (await request<Record<string, unknown>[]>('/capabilities')).data;
+    for (const metadata of registeredMetadata) {
+      expect(catalog.find((item) => item.id === metadata.id)).toMatchObject({
+        name: metadata.name,
+        priceCents: metadata.priceCents,
+        inputSchema: metadata.schema,
+        documentationUrl: metadata.documentationUrl,
+      });
+    }
+    await sync();
+    expect(
+      await db.prepare("SELECT version FROM capabilities WHERE id='document_fingerprint'").first('version'),
+    ).toBe(1);
+    await db.prepare("UPDATE capabilities SET price_cents=11 WHERE id='document_fingerprint'").run();
+    try {
+      const oldQuote = await quote('document_fingerprint', { text: 'buyer input' });
+      expect(oldQuote.priceCents).toBe(11);
+      await sync();
+      expect((await buy(oldQuote.id)).data).toMatchObject({ error: { code: 'QUOTE_STALE' } });
+      await db
+        .prepare("UPDATE capabilities SET enabled=0,success_count=7 WHERE id='document_fingerprint'")
+        .run();
+      await sync();
+      expect(
+        await db
+          .prepare(
+            "SELECT version,enabled,success_count,price_cents FROM capabilities WHERE id='document_fingerprint'",
+          )
+          .first(),
+      ).toEqual({
+        version: 2,
+        enabled: 0,
+        success_count: 7,
+        price_cents: 10,
+      });
+      expect(
+        await db.prepare("SELECT token_hash FROM agents WHERE id='agent_test'").first('token_hash'),
+      ).toBe(tokenHash);
+    } finally {
+      await sync();
+    }
+  });
+  it('retires fixture sales while preserving existing paid entitlements and records', async () => {
+    const input = { company: 'Legacy purchase' };
+    const q = await quote('datapulse_headcount', input);
+    const purchase = (await buy(q.id)).data;
+    const db = await mf.getD1Database('DB');
+    const migration = await readFile('packages/db/migrations/0004_real_capabilities.sql', 'utf8');
+    for (const statement of migration.split(';').filter((s) => s.trim())) await db.prepare(statement).run();
+    expect(
+      (await request('/agents/agent_test/quotes', { capability_id: 'datapulse_headcount', input })).status,
+    ).toBe(404);
+    expect(
+      (await request<Record<string, unknown>[]>('/capabilities')).data.some(
+        (c) => c.id === 'datapulse_headcount',
+      ),
+    ).toBe(false);
+    const invocation = (
+      await request<Invocation>('/agents/agent_test/invocations', { purchase_id: purchase.id, input })
+    ).data;
+    expect(invocation.status).toBe('completed');
+    expect(invocation.result).toMatchObject({ synthetic: true });
+    expect((await request<Purchase>(`/agents/agent_test/purchases/${purchase.id}`)).data.id).toBe(
+      purchase.id,
+    );
+  });
+  it('rejects invalid built-in inputs before creating a quote or reserving money', async () => {
+    const result = await request('/agents/agent_test/quotes', {
+      capability_id: 'github_repository',
+      input: { repository: 'https://localhost/admin' },
+    });
+    expect(result.status).toBe(400);
+    const db = await mf.getD1Database('DB');
+    expect(await db.prepare('SELECT COUNT(*) FROM quotes').first('COUNT(*)')).toBe(0);
+    expect((await request<Budget>('/agents/agent_test/budget')).data.reservedCents).toBe(0);
+  });
+  it('delivers a purchased real code scan through the queue', async () => {
+    const input = { code: 'const x = 1;\neval(req.body.code);' };
+    const q = await quote('code_scan', input);
+    const p = (await buy(q.id)).data;
+    expect(p.status).toBe('pending_approval');
+    await request(`/approvals/${p.id}`, { approve: true });
+    const inv = (await request<Invocation>('/agents/agent_test/invocations', { purchase_id: p.id, input }))
+      .data;
+    expect(inv.jobId).toBeTruthy();
+    await vi.waitFor(async () => {
+      const job = (await request<Job>(`/agents/agent_test/jobs/${inv.jobId}`)).data;
+      expect(job.status).toBe('completed');
+      expect(job.result).toMatchObject({
+        synthetic: false,
+        data: { linesAnalyzed: 2, findings: [{ rule: 'unsafe-eval', line: 2 }] },
+      });
+    });
+  });
   it('serves competing capability options without credentials', async () => {
     const result = await request<Record<string, unknown>[]>(
       '/capabilities?query=private%20company%20headcount',
@@ -570,14 +672,17 @@ describe('Actual Worker, D1, R2, Queues, and MCP integration', () => {
       const options = extract<Record<string, unknown>[]>(
         await client.callTool({
           name: 'search_capabilities',
-          arguments: { query: 'private company headcount', max_budget: 5 },
+          arguments: { query: 'document fingerprint', max_budget: 5 },
         }),
       );
-      expect(options.length).toBeGreaterThanOrEqual(2);
+      expect(options.find((option) => option.id === 'document_fingerprint')).toMatchObject({
+        name: registeredMetadata.find((metadata) => metadata.id === 'document_fingerprint')!.name,
+        inputSchema: registeredMetadata.find((metadata) => metadata.id === 'document_fingerprint')!.schema,
+      });
       const q = extract<Quote>(
         await client.callTool({
           name: 'get_quote',
-          arguments: { capability_id: 'datapulse_headcount', input: { company: 'Acme Robotics' } },
+          arguments: { capability_id: 'document_fingerprint', input: { text: 'abc' } },
         }),
       );
       const p = extract<Purchase>(
@@ -587,12 +692,16 @@ describe('Actual Worker, D1, R2, Queues, and MCP integration', () => {
       const inv = extract<Invocation>(
         await client.callTool({
           name: 'invoke_capability',
-          arguments: { purchase_id: p.id, input: { company: 'Acme Robotics' } },
+          arguments: { purchase_id: p.id, input: { text: 'abc' } },
         }),
       );
       expect(inv.status).toBe('completed');
+      expect(inv.result).toMatchObject({
+        synthetic: false,
+        data: { sha256: 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad', bytes: 3 },
+      });
       const budget = extract<Budget>(await client.callTool({ name: 'get_budget', arguments: {} }));
-      expect(budget.spentTodayCents).toBe(20);
+      expect(budget.spentTodayCents).toBe(10);
     } finally {
       await client.close();
     }

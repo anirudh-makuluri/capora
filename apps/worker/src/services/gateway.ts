@@ -1,17 +1,25 @@
 import type { capabilities } from '@capora/db';
 import { DomainError } from '@capora/types';
 import { validatePayload } from '@capora/provider-sdk';
-import { MAX_PAYLOAD_BYTES, PROVIDER_TIMEOUT_MS } from '@capora/config';
+import { PROVIDER_TIMEOUT_MS } from '@capora/config';
+import { boundedJson } from '../lib/provider-http';
+export { boundedJson } from '../lib/provider-http';
 import { unseal } from '../lib/crypto';
 import { demoProviders } from '../providers/demo';
 import { readArtifact } from './storage';
 import type { Env } from '../env';
+import { invokeBuiltin } from '../providers/live';
+import { getRegisteredCapability } from '../providers/capabilities/registry';
 
 export function validateEndpoint(
   endpoint: string,
   env: Pick<Env, 'PROVIDER_ALLOWED_HOSTS'>,
   dataset = false,
 ): void {
+  if (endpoint.startsWith('builtin://')) {
+    getRegisteredCapability(endpoint);
+    return;
+  }
   if (endpoint.startsWith('demo://')) {
     if (!/^demo:\/\/[a-z0-9_]+$/.test(endpoint))
       throw new DomainError('INVALID_ENDPOINT', 'Invalid demo endpoint.');
@@ -46,41 +54,6 @@ export function validateEndpoint(
   )
     throw new DomainError('ENDPOINT_NOT_ALLOWED', 'Private networks and IP literals are not allowed.');
 }
-export async function boundedJson(response: Response, maxBytes = MAX_PAYLOAD_BYTES): Promise<unknown> {
-  if (!response.body) throw new DomainError('PROVIDER_FAILURE', 'Provider returned an empty response.', 502);
-  const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let size = 0;
-  try {
-    while (true) {
-      const part = await reader.read();
-      if (part.done) break;
-      size += part.value.length;
-      if (size > maxBytes) {
-        await reader.cancel();
-        throw new DomainError(
-          'PROVIDER_OUTPUT_TOO_LARGE',
-          'Provider response exceeds the gateway limit.',
-          502,
-        );
-      }
-      chunks.push(part.value);
-    }
-    const buffer = new Uint8Array(size);
-    let offset = 0;
-    for (const chunk of chunks) {
-      buffer.set(chunk, offset);
-      offset += chunk.length;
-    }
-    try {
-      return JSON.parse(new TextDecoder().decode(buffer));
-    } catch {
-      throw new DomainError('PROVIDER_FAILURE', 'Provider must return valid JSON.', 502);
-    }
-  } finally {
-    reader.releaseLock();
-  }
-}
 export async function invokeProvider(
   env: Env,
   capability: typeof capabilities.$inferSelect,
@@ -89,6 +62,11 @@ export async function invokeProvider(
 ): Promise<unknown> {
   validatePayload(capability.inputSchema, input);
   validateEndpoint(capability.endpoint, env, capability.type === 'dataset');
+  if (capability.endpoint.startsWith('builtin://')) {
+    const output = await invokeBuiltin(capability.endpoint, input, env);
+    validatePayload(capability.outputSchema, output, true);
+    return output;
+  }
   let response: Response;
   if (capability.endpoint.startsWith('r2://')) {
     const object = await readArtifact(env, capability.endpoint.slice(5));
@@ -121,7 +99,8 @@ export async function invokeProvider(
         method: capability.httpMethod,
         headers,
         ...(capability.httpMethod === 'POST' ? { body: JSON.stringify(input) } : {}),
-        redirect: 'error',
+        // Workers does not support redirect: 'error'. Non-2xx (including redirects) fail below.
+        redirect: 'manual',
         signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
       });
     } catch (error) {

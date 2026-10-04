@@ -12,29 +12,37 @@ const client = await connect(agent.token);
 try {
   assert.equal((await client.listTools()).tools.length, 8);
   const options = await call<Capability[]>(client, 'search_capabilities', {
-    query: 'private company headcount',
+    query: 'company registry',
     max_budget: 5,
   });
-  assert.ok(options.length >= 2);
+  assert.ok(options.length >= 1);
   assert.equal(
-    (await call<Capability>(client, 'get_capability', { capability_id: 'datapulse_headcount' })).priceCents,
+    (await call<Capability>(client, 'get_capability', { capability_id: 'gleif_entities' })).priceCents,
     20,
   );
-  const input = { company: 'Acme Robotics', region: 'Arizona' };
-  const quote = await call<Quote>(client, 'get_quote', { capability_id: 'datapulse_headcount', input });
+  const input = { company: 'Microsoft', limit: 5 };
+  const quote = await call<Quote>(client, 'get_quote', { capability_id: 'gleif_entities', input });
   const purchase = await call<Purchase>(client, 'purchase_capability', { quote_id: quote.id });
   assert.equal(purchase.status, 'purchased');
   assert.match(purchase.orderId ?? '', /^DEMO-/);
   assert.equal((await call<Purchase>(client, 'purchase_capability', { quote_id: quote.id })).id, purchase.id);
   const result = await call<Invocation>(client, 'invoke_capability', { purchase_id: purchase.id, input });
-  assert.equal(result.status, 'completed');
+  assert.equal(result.status, 'completed', result.error ?? 'Live provider invocation must complete.');
+  const providerResult = result.result as {
+    synthetic: boolean;
+    source: string;
+    data: { entities: unknown[] };
+  };
+  assert.equal(providerResult.synthetic, false);
+  assert.equal(providerResult.source, 'GLEIF');
+  assert.ok(providerResult.data.entities.length > 0);
   assert.equal(
     (await call<Invocation>(client, 'invoke_capability', { purchase_id: purchase.id, input })).id,
     result.id,
   );
   const securityInput = { code: 'eval(req.body.code);' };
   const sq = await call<Quote>(client, 'get_quote', {
-    capability_id: 'securescan_advanced',
+    capability_id: 'code_scan',
     input: securityInput,
   });
   const sp = await call<Purchase>(client, 'purchase_capability', { quote_id: sq.id });
@@ -62,7 +70,7 @@ try {
   assert.equal(budget.remainingCents, 2180);
   assert.equal(budget.reservedCents, 0);
   console.log(
-    'PASS: real HTTP MCP client → D1 quotes → simulated payment → protected provider endpoint → human approval → Queue job → result → correct $3.20 spend.',
+    'PASS: real HTTP MCP client → D1 quotes → simulated payment → live GLEIF source → human approval → Queue job → result → computed code scan → correct $3.20 spend.',
   );
 } finally {
   await client.close();

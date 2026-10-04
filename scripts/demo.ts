@@ -2,14 +2,14 @@ import { connect, call, rest, wait, baseUrl } from './mcp-client';
 import type { Capability, Budget, Quote, Purchase, Invocation, Job } from '../packages/types/src/index';
 const client = await connect();
 try {
-  console.log('Capora: evaluate whether Acme Robotics is expanding into Arizona.');
-  console.log('Synthetic provider data. Payment mode is reported with each purchase.');
+  console.log('Capora: retrieve Microsoft legal entity records from GLEIF.');
+  console.log('Live source data and computed tools. Payment mode is reported with each purchase.');
   const budget = await call<Budget>(client, 'get_budget');
   console.log(
     `Available: $${(budget.remainingCents / 100).toFixed(2)}. Auto-approve: $${(budget.autoApproveCents / 100).toFixed(2)}.`,
   );
   const options = await call<Capability[]>(client, 'search_capabilities', {
-    query: 'private company hiring and headcount',
+    query: 'company registry',
     max_budget: 5,
   });
   console.table(
@@ -21,18 +21,18 @@ try {
     })),
   );
   const capability = await call<Capability>(client, 'get_capability', {
-    capability_id: 'datapulse_headcount',
+    capability_id: 'gleif_entities',
   });
   console.log(`Inspected runtime input schema for ${capability.name}.`);
-  const input = { company: 'Acme Robotics', region: 'Arizona', timeRange: '2026-Q3' };
+  const input = { company: 'Microsoft', limit: 5 };
   const quote = await call<Quote>(client, 'get_quote', {
     capability_id: capability.id,
     input,
-    reason: 'Need private employment data to evaluate Arizona expansion.',
+    reason: 'Need live company identity records from GLEIF.',
   });
   let purchase = await call<Purchase>(client, 'purchase_capability', { quote_id: quote.id });
   console.log(
-    `Employment purchase: ${purchase.status}, mode: ${purchase.paymentMode}, order: ${purchase.orderId ?? 'pending'}`,
+    `Registry purchase: ${purchase.status}, mode: ${purchase.paymentMode}, order: ${purchase.orderId ?? 'pending'}`,
   );
   if (purchase.status !== 'purchased')
     throw new Error(
@@ -41,11 +41,10 @@ try {
   const invocation = await call<Invocation>(client, 'invoke_capability', { purchase_id: purchase.id, input });
   console.log(JSON.stringify(invocation.result, null, 2));
   const securityInput = {
-    repository: 'acme-robotics/control-plane',
     code: 'const query = `SELECT * FROM users WHERE id = ${req.query.id}`;\neval(req.body.code);',
   };
   const securityQuote = await call<Quote>(client, 'get_quote', {
-    capability_id: 'securescan_advanced',
+    capability_id: 'code_scan',
     input: securityInput,
     reason:
       'Before acquisition, specialized tooling should inspect the control-plane code. This exceeds my autonomous threshold.',

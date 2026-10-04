@@ -21,22 +21,22 @@ pnpm dev
 - Playground: [http://localhost:5173/demo](http://localhost:5173/demo)
 - Worker / MCP: `http://127.0.0.1:8787/mcp`
 
-`setup:local` generates random credentials in ignored `.local/credentials.json`, writes ignored `apps/worker/.dev.vars`, migrates local D1, and seeds ten synthetic capabilities and the Acquisition Research Agent. It preserves existing configuration and seed records. Local storage persists across restarts in `apps/worker/.wrangler/state`.
+`setup:local` generates random credentials in ignored `.local/credentials.json`, writes ignored `apps/worker/.dev.vars`, migrates local D1, and seeds six real capabilities and the Acquisition Research Agent. It preserves existing configuration and seed records. Local storage persists across restarts in `apps/worker/.wrangler/state`.
 
 The local dashboard uses a loopback-only demo identity. **Local payments are simulated**, labeled in the UI, and have `DEMO-` identifiers. They are not PayPal transactions. Deployment defaults disable the local identity and simulator and require PayPal Sandbox. No live PayPal payment mode is implemented.
 
 ## What is included
 
-| Area             | Working behavior                                                                                                                                                 |
-| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Marketplace      | Ten demo capabilities; keyword search; type, category, price, reliability, reputation, and latency filters; sorting; schema detail pages                         |
-| Agent management | Creation, rename, hashed tokens, token regeneration/revocation, spending policies, purchase/invocation histories                                                 |
-| Commerce         | Immutable five-minute input-bound quotes; idempotent purchases; atomic budget reservations; owner approval/rejection; cancellation and payment reconciliation    |
-| Payments         | PayPal Sandbox OAuth, Orders creation/capture, saved-payment setup through the Payment Method Tokens API, persisted order/capture IDs; explicit local simulator  |
-| Execution        | Protected demo provider endpoints; approved HTTPS providers; schema validation; one invocation per purchase; structured errors; latency and reliability tracking |
-| Async / storage  | Cloudflare Queues consumer; duplicate-delivery guards; persisted job polling; R2 datasets and large result artifacts; scheduled outbox recovery                  |
-| Audit            | Live dashboard polling, transaction details, result inspection, spending totals, activity timeline, CSV export, provider usage/revenue                           |
-| Product          | Landing page, marketplace, workspace overview, approvals, agent playground, provider console, in-app MCP connection guide                                        |
+| Area             | Working behavior                                                                                                                                                       |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Marketplace      | Six live-data and computed capabilities; keyword search; type, category, price, reliability, reputation, and latency filters; sorting; schema detail pages             |
+| Agent management | Creation, rename, hashed tokens, token regeneration/revocation, spending policies, purchase/invocation histories                                                       |
+| Commerce         | Immutable five-minute input-bound quotes; idempotent purchases; atomic budget reservations; owner approval/rejection; cancellation and payment reconciliation          |
+| Payments         | PayPal Sandbox OAuth, Orders creation/capture, saved-payment setup through the Payment Method Tokens API, persisted order/capture IDs; explicit local simulator        |
+| Execution        | Live source adapters and computed tools; approved HTTPS providers; schema validation; one invocation per purchase; structured errors; latency and reliability tracking |
+| Async / storage  | Cloudflare Queues consumer; duplicate-delivery guards; persisted job polling; R2 datasets and large result artifacts; scheduled outbox recovery                        |
+| Audit            | Live dashboard polling, transaction details, result inspection, spending totals, activity timeline, CSV export, provider usage/revenue                                 |
+| Product          | Landing page, marketplace, workspace overview, approvals, agent playground, provider console, in-app MCP connection guide                                              |
 
 The browser playground is a deterministic scripted client of the shared REST services; it is not an LLM or a public-web researcher. The CLI demo and automated verifier use the **official MCP client** against the actual Streamable HTTP endpoint.
 
@@ -89,7 +89,7 @@ See [the PayPal guide](docs/paypal.md). Set `PAYMENT_MODE=sandbox`, `PAYPAL_ENVI
 
 Autonomous payments require a buyer-authorized saved PayPal Wallet and a merchant account enabled for the relevant billing agreement/vault features. Use **My agents → Connect PayPal**. Without a saved method, the Orders integration returns `payment_pending` and a sandbox checkout URL; complete checkout in Transactions and click **Check payment**.
 
-This repository was verified locally with the explicit payment simulator and mocked Sandbox adapter tests. The real Sandbox flow also passed through the Worker and official MCP client: US buyer wallet authorization, autonomous $0.20 DataPulse capture/invocation, a $3.00 SecureScan purchase gated by dashboard owner approval, and queued job completion. Both USD captures were independently verified through PayPal, with $3.20 spent and no funds reserved. Real Sandbox calls require your credentials/account configuration. Provider demo intelligence is synthetic. SecureScan runs a small deterministic code rule scanner; repository URLs alone use a fixture, and this is not a comprehensive security audit.
+This repository was verified locally with the explicit payment simulator and mocked Sandbox adapter tests. The real Sandbox flow also passed through the Worker and official MCP client: US buyer wallet authorization, autonomous $0.20 DataPulse capture/invocation, a $3.00 SecureScan purchase gated by dashboard owner approval, and queued job completion. Both USD captures were independently verified through PayPal, with $3.20 spent and no funds reserved. Real Sandbox calls require your credentials/account configuration. That earlier verification used the legacy synthetic catalog. The default catalog now uses live GLEIF, Crossref, World Bank and GitHub sources plus code scanning and document fingerprints. See [real capabilities](docs/real-capabilities.md) for inputs, source rights and limitations.
 
 ## MCP connection
 
@@ -125,17 +125,17 @@ pnpm lint
 pnpm test                       # builds then tests isolated workerd/D1/R2/Queues + units
 pnpm test:e2e                   # requires pnpm dev; real MCP/HTTP, local simulator only
 pnpm exec playwright install chromium
-pnpm test:browser               # starts dev if needed; seeded demo policy required
+pnpm test:browser               # disposable Worker and simulated payments
 pnpm exec tsx scripts/accessibility.ts  # requires dev; writes a WCAG A/AA automated report
 ```
 
-Unit and Worker integration tests use isolated storage and make no real payments. The live verifier creates and revokes its own agent, preserving its audit records in the local dashboard. Browser demo tests create purchases for the seeded Research Agent. Screenshots and test artifacts are ignored by Git under `.local/`, `test-results/`, and `playwright-report/`.
+Unit and Worker integration tests use isolated storage and make no real payments. The live verifier creates and revokes its own agent, preserving its audit records in the local dashboard. Browser tests use a disposable Worker and simulated payments. Screenshots and test artifacts are ignored by Git under `.local/`, `test-results/`, and `playwright-report/`.
 
 See [the verification record](docs/verification.md) for observed results and the remaining external checks.
 
 ## Demonstrate it
 
-Open the playground, run the acquisition task, request the security analysis, approve $3.00, and inspect the transaction/result trail. For the real MCP flow:
+Open the playground, run the acquisition task, request the code pattern scan, approve $3.00, and inspect the transaction/result trail. For the real MCP flow:
 
 ```sh
 pnpm demo

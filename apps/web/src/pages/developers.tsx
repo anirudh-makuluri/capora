@@ -76,7 +76,7 @@ await client.connect(new StreamableHTTPClientTransport(
 ));
 const options = await client.callTool({
   name: 'search_capabilities',
-  arguments: { query: 'private company hiring and headcount', max_budget: 5 }
+  arguments: { query: 'company registry', max_budget: 5 }
 });`}</CodeBlock>
           <a
             className="text-link"

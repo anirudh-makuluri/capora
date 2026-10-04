@@ -3,7 +3,7 @@ import { and, eq, sql } from 'drizzle-orm';
 import { DomainError, type Invocation, type JsonInput, type Job } from '@capora/types';
 import { canonical, hash, id } from '../lib/crypto';
 import { getPurchase } from './commerce';
-import { getCapabilityRecord } from './catalog';
+import { getExecutableCapabilityRecord } from './catalog';
 import { invokeProvider } from './gateway';
 import { audit } from '../lib/audit';
 import { readArtifact, writeArtifact } from './storage';
@@ -50,7 +50,7 @@ export async function invokeCapability(
     );
   const existing = await db.select().from(invocations).where(eq(invocations.purchaseId, purchaseId)).get();
   if (existing) return getInvocation(env, existing.id, agentId);
-  const capability = await getCapabilityRecord(env, purchase.capabilityId);
+  const capability = await getExecutableCapabilityRecord(env, purchase.capabilityId);
   if (capability.version !== quote.capabilityVersion)
     throw new DomainError(
       'CAPABILITY_CHANGED',
@@ -113,7 +113,7 @@ export async function executeInvocation(env: Env, invocationId: string) {
   const start = Date.now();
   await db.update(jobs).set({ status: 'running', progress: 20 }).where(eq(jobs.invocationId, invocationId));
   try {
-    const capability = await getCapabilityRecord(env, claimed.capabilityId);
+    const capability = await getExecutableCapabilityRecord(env, claimed.capabilityId);
     const quote = await db
       .select({ capabilityVersion: quotes.capabilityVersion })
       .from(purchases)

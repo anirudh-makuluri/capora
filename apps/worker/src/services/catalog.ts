@@ -3,6 +3,32 @@ import { eq } from 'drizzle-orm';
 import { DomainError, type Capability, type SearchInput } from '@capora/types';
 import type { Env } from '../env';
 
+// Archived bootstrap fixtures can fulfill old purchases, but are absent from new discovery/quotes.
+export function isArchivedBootstrapFixture(row: typeof capabilities.$inferSelect) {
+  return (
+    row.synthetic &&
+    row.endpoint === `demo://${row.id}` &&
+    [
+      'datapulse_headcount',
+      'companyintel_premium',
+      'verifycorp',
+      'securescan_advanced',
+      'legalarchive',
+      'geointel',
+      'retail_demand',
+      'documentverify',
+      'supplychain_radar',
+      'patentlens',
+    ].includes(row.id)
+  );
+}
+export async function getExecutableCapabilityRecord(env: Env, capabilityId: string) {
+  const row = await getCapabilityRecord(env, capabilityId, false);
+  if (!row.enabled && !isArchivedBootstrapFixture(row))
+    throw new DomainError('CAPABILITY_UNAVAILABLE', 'This capability is unavailable.', 404);
+  return row;
+}
+
 export function publicCapability(
   row: typeof capabilities.$inferSelect,
   provider: typeof providers.$inferSelect,

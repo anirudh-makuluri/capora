@@ -1,5 +1,7 @@
 import { Validator, type Schema } from '@cfworker/json-schema';
 import { DomainError, type JsonSchema } from '@capora/types';
+export { builtinOutputSchema } from './builtins';
+export type { BuiltinCapability } from './builtins';
 export type { CapabilityRegistration, JsonInput, JsonSchema, JobStatus } from '@capora/types';
 
 export interface ProviderRequest {

@@ -16,7 +16,7 @@ await client.connect(
 );
 const capabilities = await client.callTool({
   name: 'search_capabilities',
-  arguments: { query: 'private company hiring and headcount', max_budget: 5, sort: 'price' },
+  arguments: { query: 'company registry', max_budget: 5, sort: 'price' },
 });
 ```
 
@@ -47,7 +47,7 @@ Results have JSON text content plus `structuredContent.result`. Tool errors have
 4. Purchase the quote. If `pending_approval`, tell the human to review Approvals and poll `get_purchase_status`. If `payment_pending`, the human may need Sandbox checkout; do not invoke.
 5. After `purchased`, invoke with the exact quoted input. Key ordering does not matter; changed values require a new quote/purchase.
 6. A synchronous invocation returns its result immediately. An asynchronous invocation returns `jobId`; poll `get_job` to a terminal state.
-7. Incorporate the returned data into the original task, retaining synthetic-data disclaimers where applicable.
+7. Incorporate the returned data into the original task, retaining source links, observation times, licenses and limitations. Old fixture results retain their synthetic-data disclaimer.
 
 `get_purchase_status` is the eighth tool because approvals/checkout outlive a single MCP request. It may reconcile/capture an existing approved Sandbox order; it is idempotent but not annotated as read-only. There are no per-provider MCP tools or dynamic tool injection.
 
