@@ -68,4 +68,24 @@ const inputSchema = {
 validatePayload(inputSchema, { sku: 'ACME-123' });
 ```
 
-Use the same schema at registration and in your provider. The default catalog uses the source adapters and computed tools in `apps/worker/src/providers/live.ts`. See [real capabilities](real-capabilities.md) for supported inputs and source limitations. `demo://` endpoints remain for isolated fault-injection tests and old paid fixture purchases, and remain explicitly synthetic.
+Use the same schema at registration and in your provider. See [real capabilities](real-capabilities.md) for supported inputs and source limitations. `demo://` endpoints remain for isolated fault-injection tests and old paid fixture purchases, and remain explicitly synthetic.
+
+## Add a built-in capability
+
+Each source adapter or computed tool lives in its own file under `apps/worker/src/providers/capabilities/`. Its `CapabilityDefinition` contains:
+
+- `metadata`: stable ID, marketplace name/description/category/tags, price, latency, execution mode, documentation URL, input `schema` and result `dataSchema`.
+- Optional `validateInput(input)`: semantic checks beyond the JSON schema, run before quoting and again before execution.
+- `execute(input, { signal, env })`: the handler, returning `{ data, source, sourceUrl?, license? }`. Use `signal` for source requests; `env` provides Worker bindings when invoked by the paid gateway.
+
+To add a capability:
+
+1. Create its file, exporting a `CapabilityDefinition`. Use an ID matching `[a-z][a-z0-9_]*`; existing IDs represent existing contracts.
+2. Import it and add it to `registeredCapabilities` in `apps/worker/src/providers/capabilities/registry.ts`.
+3. Run `pnpm catalog:sync` against an initialized local database, then restart/rebuild the Worker. Normal `pnpm setup:local` also syncs the registry.
+
+The same registry provides execution lookup and catalog metadata. Catalog sync writes those definitions into D1, where the marketplace and agents' `search_capabilities` tool discover them. `live.ts` handles shared validation, deadlines, response limits and the provenance envelope; it needs no capability-specific branches. Duplicate IDs and unsupported schemas fail at registry initialization.
+
+Catalog sync preserves users, credentials, policies, payments, results, observed usage and disabled status. Changed listing metadata increments the capability version, invalidating earlier quotes and unexecuted purchases according to the existing gateway contract; unchanged syncs preserve the version. Removing an entry from the registry does not automatically disable its D1 listing: disable it explicitly and keep its handler available for existing paid contracts.
+
+For an authorized remote release, deploy the registered handlers and run `pnpm catalog:sync --remote` against the already initialized database. New handlers must be deployed before enabling their listings. Catalog sync uses the existing `user_demo` catalog owner and does not bootstrap accounts or create credentials. It updates only matching built-in IDs/endpoints/provider ownership; provider-console listings are preserved.

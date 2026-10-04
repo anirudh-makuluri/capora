@@ -1,6 +1,6 @@
 import type { capabilities } from '@capora/db';
 import { DomainError } from '@capora/types';
-import { validatePayload, builtinCapabilities } from '@capora/provider-sdk';
+import { validatePayload } from '@capora/provider-sdk';
 import { PROVIDER_TIMEOUT_MS } from '@capora/config';
 import { boundedJson } from '../lib/provider-http';
 export { boundedJson } from '../lib/provider-http';
@@ -9,6 +9,7 @@ import { demoProviders } from '../providers/demo';
 import { readArtifact } from './storage';
 import type { Env } from '../env';
 import { invokeBuiltin } from '../providers/live';
+import { getRegisteredCapability } from '../providers/capabilities/registry';
 
 export function validateEndpoint(
   endpoint: string,
@@ -16,8 +17,7 @@ export function validateEndpoint(
   dataset = false,
 ): void {
   if (endpoint.startsWith('builtin://')) {
-    if (!builtinCapabilities.some((c) => endpoint === `builtin://${c.id}`))
-      throw new DomainError('ENDPOINT_NOT_ALLOWED', 'Unknown built-in capability.');
+    getRegisteredCapability(endpoint);
     return;
   }
   if (endpoint.startsWith('demo://')) {
@@ -63,7 +63,7 @@ export async function invokeProvider(
   validatePayload(capability.inputSchema, input);
   validateEndpoint(capability.endpoint, env, capability.type === 'dataset');
   if (capability.endpoint.startsWith('builtin://')) {
-    const output = await invokeBuiltin(capability.endpoint, input);
+    const output = await invokeBuiltin(capability.endpoint, input, env);
     validatePayload(capability.outputSchema, output, true);
     return output;
   }

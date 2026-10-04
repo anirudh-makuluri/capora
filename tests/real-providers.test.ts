@@ -1,9 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import {
-  builtinCapabilities,
-  builtinOutputSchema,
-  validateSchemaDefinition,
-} from '../packages/provider-sdk/src/index';
+import { builtinOutputSchema, validateSchemaDefinition } from '../packages/provider-sdk/src/index';
+import { builtinCapabilities } from '../apps/worker/src/providers/capabilities/registry';
 import { invokeBuiltin, validateBuiltinInput } from '../apps/worker/src/providers/live';
 import { validateEndpoint } from '../apps/worker/src/services/gateway';
 

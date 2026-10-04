@@ -57,3 +57,11 @@ Remote payment/capture and paid Queue execution still require the end-to-end che
 - This verifies local execution and real source responses, not a remote release or live-money commerce. The hosted catalog still requires an authorized deployment of this change and migration. Payments remain PayPal Sandbox or the explicit local simulator.
 
 See [real capabilities](real-capabilities.md) for input examples, source rights and limitations.
+
+## Capability modules and registry — 2026-10-04
+
+- All six capabilities now own their metadata, schemas, semantic validation and execution in individual files. The registry supplies both execution lookup and D1 catalog metadata; marketplace and MCP discovery read the synced catalog.
+- Local catalog-only sync and normal seeding passed. Integration checks verify unchanged syncs preserve versions, changed metadata invalidates stale quotes, and sync preserves disabled status, observed usage and agent credentials.
+- Type checking, linting, production frontend build, Wrangler dry-run, 95 unit/integration tests and eight Chromium browser tests passed. Registry tests exercise a new handler through the shared dispatcher and verify input/output validation and output-size enforcement.
+- Read-only checks against all six handlers returned live GLEIF, Crossref, World Bank and GitHub responses, plus computed scanner and fingerprint results. Browser checks completed purchasing/invoking the fingerprint and approving/queuing the scanner with simulated payments.
+- These checks used local/disposable storage. This refactor has not been deployed remotely.

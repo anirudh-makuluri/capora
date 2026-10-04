@@ -32,6 +32,8 @@ Built-in `builtin://` endpoints are a closed list, dispatched only through the p
 
 New listings start with unmeasured reliability and unrated reputation. Execution counters provide observed reliability after calls; no fabricated ratings or measured SLA are seeded.
 
+Each capability owns its metadata, input/output schemas, validation and handler in `apps/worker/src/providers/capabilities/`. The explicit [registry](../apps/worker/src/providers/capabilities/registry.ts) supplies execution lookup and the D1 catalog sync used by marketplace search and agent discovery. See [adding a built-in capability](providers.md#add-a-built-in-capability) for the extension workflow.
+
 ## Verification
 
 `pnpm exec tsx scripts/verify-real-providers.ts` performs read-only network checks against the four live sources plus known scanner/fingerprint inputs. It makes no purchases, payments or database changes. `pnpm test:e2e` exercises the real HTTP/MCP purchase and invocation flow locally using simulated payments and a live GLEIF query. Isolated unit, Worker and browser tests use disposable storage and computed tools; legacy fixtures exist only to test prior-contract compatibility and controlled failures.

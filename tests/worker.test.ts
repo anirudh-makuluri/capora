@@ -6,7 +6,7 @@ import { createHash } from 'node:crypto';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { seedCapabilities, outputSchema } from './fixtures/catalog';
-import { builtinCapabilities, builtinOutputSchema } from '../packages/provider-sdk/src/index';
+import { catalogStatements, seedCapabilities as registeredMetadata } from '../scripts/seed-data';
 import type { Purchase, Quote, Invocation, Budget, Job } from '../packages/types/src/index';
 import { R2_BUDGET } from '../packages/config/src/index';
 import { hashPassword } from '../apps/worker/src/lib/password';
@@ -143,38 +143,7 @@ beforeAll(async () => {
       )
       .run();
   }
-  for (const c of builtinCapabilities) {
-    await db
-      .prepare(
-        'INSERT INTO providers(id,user_id,name,description,reputation,created_at) VALUES (?,?,?,?,?,?)',
-      )
-      .bind(`provider_${c.id}`, 'user_test', 'Capora', c.description, 0, now)
-      .run();
-    await db
-      .prepare(
-        'INSERT INTO capabilities(id,provider_id,name,description,type,category,price_cents,pricing_unit,input_schema,output_schema,endpoint,expected_latency_ms,baseline_reliability,tags,async,synthetic,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-      )
-      .bind(
-        c.id,
-        `provider_${c.id}`,
-        c.name,
-        c.description,
-        c.type,
-        c.category,
-        c.priceCents,
-        'query',
-        JSON.stringify(c.schema),
-        JSON.stringify(builtinOutputSchema(c)),
-        `builtin://${c.id}`,
-        c.latency,
-        0,
-        JSON.stringify(c.tags),
-        c.async ? 1 : 0,
-        0,
-        now,
-      )
-      .run();
-  }
+  for (const statement of catalogStatements('user_test', now)) await db.prepare(statement).run();
 });
 beforeEach(async () => {
   const db = await mf.getD1Database('DB');
@@ -207,6 +176,54 @@ afterAll(async () => {
 });
 
 describe('Actual Worker, D1, R2, Queues, and MCP integration', () => {
+  it('syncs registered metadata for discovery, preserves usage, and invalidates changed quotes', async () => {
+    const db = await mf.getD1Database('DB');
+    const sync = async () => {
+      for (const statement of catalogStatements('user_test', new Date().toISOString()))
+        await db.prepare(statement).run();
+    };
+    const catalog = (await request<Record<string, unknown>[]>('/capabilities')).data;
+    for (const metadata of registeredMetadata) {
+      expect(catalog.find((item) => item.id === metadata.id)).toMatchObject({
+        name: metadata.name,
+        priceCents: metadata.priceCents,
+        inputSchema: metadata.schema,
+        documentationUrl: metadata.documentationUrl,
+      });
+    }
+    await sync();
+    expect(
+      await db.prepare("SELECT version FROM capabilities WHERE id='document_fingerprint'").first('version'),
+    ).toBe(1);
+    await db.prepare("UPDATE capabilities SET price_cents=11 WHERE id='document_fingerprint'").run();
+    try {
+      const oldQuote = await quote('document_fingerprint', { text: 'buyer input' });
+      expect(oldQuote.priceCents).toBe(11);
+      await sync();
+      expect((await buy(oldQuote.id)).data).toMatchObject({ error: { code: 'QUOTE_STALE' } });
+      await db
+        .prepare("UPDATE capabilities SET enabled=0,success_count=7 WHERE id='document_fingerprint'")
+        .run();
+      await sync();
+      expect(
+        await db
+          .prepare(
+            "SELECT version,enabled,success_count,price_cents FROM capabilities WHERE id='document_fingerprint'",
+          )
+          .first(),
+      ).toEqual({
+        version: 2,
+        enabled: 0,
+        success_count: 7,
+        price_cents: 10,
+      });
+      expect(
+        await db.prepare("SELECT token_hash FROM agents WHERE id='agent_test'").first('token_hash'),
+      ).toBe(tokenHash);
+    } finally {
+      await sync();
+    }
+  });
   it('retires fixture sales while preserving existing paid entitlements and records', async () => {
     const input = { company: 'Legacy purchase' };
     const q = await quote('datapulse_headcount', input);
@@ -658,7 +675,10 @@ describe('Actual Worker, D1, R2, Queues, and MCP integration', () => {
           arguments: { query: 'document fingerprint', max_budget: 5 },
         }),
       );
-      expect(options.length).toBeGreaterThanOrEqual(1);
+      expect(options.find((option) => option.id === 'document_fingerprint')).toMatchObject({
+        name: registeredMetadata.find((metadata) => metadata.id === 'document_fingerprint')!.name,
+        inputSchema: registeredMetadata.find((metadata) => metadata.id === 'document_fingerprint')!.schema,
+      });
       const q = extract<Quote>(
         await client.callTool({
           name: 'get_quote',
