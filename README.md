@@ -93,6 +93,10 @@ This repository was verified locally with the explicit payment simulator and moc
 
 ## MCP connection
 
+Use **Connect an agent → Copy setup prompt** to let your coding agent collect a name and spending
+limits, create the agent after browser account authorization, and configure MCP automatically.
+No pre-existing agent token is needed. See [prompt-based setup](docs/agent-setup.md).
+
 Create or regenerate an agent token under My agents. The token is displayed once. Use the deployed URL or the local Worker URL with a Bearer authorization header:
 
 ```json

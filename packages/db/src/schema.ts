@@ -317,3 +317,22 @@ export const rateLimits = sqliteTable('rate_limits', {
   count: integer('count').notNull(),
   expiresAt: integer('expires_at').notNull(),
 });
+export const agentSetups = sqliteTable(
+  'agent_setups',
+  {
+    id: text('id').primaryKey(),
+    deviceCodeHash: text('device_code_hash').notNull().unique(),
+    tokenHash: text('token_hash').notNull().unique(),
+    userCode: text('user_code').notNull(),
+    name: text('name').notNull(),
+    dailyBudgetCents: integer('daily_budget_cents').notNull(),
+    autoApproveCents: integer('auto_approve_cents').notNull(),
+    maxTransactionCents: integer('max_transaction_cents').notNull(),
+    status: text('status').$type<'pending' | 'approved' | 'denied'>().notNull().default('pending'),
+    agentId: text('agent_id').notNull().unique(),
+    userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }),
+    createdAt: text('created_at').notNull(),
+    expiresAt: text('expires_at').notNull(),
+  },
+  (t) => [index('agent_setups_expiry_idx').on(t.expiresAt)],
+);

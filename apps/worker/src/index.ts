@@ -32,6 +32,7 @@ import { authRoutes } from './routes/auth';
 import { agentRoutes } from './routes/agents';
 import { providerRoutes } from './routes/providers';
 import { billingRoutes } from './routes/billing';
+import { publicConnectRoutes, connectRoutes } from './routes/connect';
 import type { AppEnv, Env } from './env';
 
 export const app = new Hono<AppEnv>();
@@ -96,6 +97,7 @@ app.get('/api/health', (c) =>
   c.json({ name: 'Capora', status: 'ok', version: '0.1.0', paymentMode: c.env.PAYMENT_MODE }),
 );
 app.route('/api/auth', authRoutes);
+app.route('/api/connect', publicConnectRoutes);
 app.get('/api/capabilities', async (c) => {
   const q = c.req.query();
   const input = searchSchema.parse({
@@ -115,6 +117,7 @@ app.use('/api/*', async (c, next) => {
 app.get('/api/dashboard', async (c) => c.json(await getDashboard(c.env, c.get('userId'))));
 app.get('/api/storage/usage', async (c) => c.json(await getStorageUsage(c.env)));
 app.route('/api/agents', agentRoutes);
+app.route('/api/connect', connectRoutes);
 app.route('/api/providers', providerRoutes);
 app.route('/api/billing', billingRoutes);
 app.post('/api/approvals/:purchaseId', async (c) => {

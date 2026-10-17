@@ -2,6 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
 import { readFile, readdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { createHash, randomBytes } from 'node:crypto';
 
 let mf: Miniflare;
 const base = 'https://capora.test';
@@ -85,6 +86,8 @@ beforeAll(async () => {
 beforeEach(async () => {
   const db = await mf.getD1Database('DB');
   for (const table of [
+    'activity',
+    'agent_setups',
     'spending_policies',
     'agents',
     'providers',
@@ -95,6 +98,160 @@ beforeEach(async () => {
     'rate_limits',
   ])
     await db.prepare(`DELETE FROM ${table}`).run();
+});
+
+describe('Prompt-based agent connection in the actual Worker and D1', () => {
+  const preferences = {
+    name: 'Prompt research agent',
+    dailyBudgetCents: 500,
+    autoApproveCents: 50,
+    maxTransactionCents: 300,
+  };
+  const sha = (value: string) => createHash('sha256').update(value).digest('hex');
+  async function start(overrides: Record<string, unknown> = {}) {
+    const token = `cap_${randomBytes(32).toString('base64url')}`;
+    const deviceCode = `setup_${randomBytes(32).toString('base64url')}`;
+    const input = { ...preferences, tokenHash: sha(token), deviceCodeHash: sha(deviceCode), ...overrides };
+    const response = await send('/connect', input);
+    return {
+      response,
+      token,
+      deviceCode,
+      input,
+      request: (await response.json()) as { id: string; userCode: string; verificationUrl: string },
+    };
+  }
+  async function status(deviceCode: string) {
+    return mf.dispatchFetch(`${base}/api/connect/status`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${deviceCode}` },
+      body: '{}',
+    });
+  }
+  it('requires owner authorization and atomically applies the selected policy without exposing tokens', async () => {
+    const setup = await start();
+    expect(setup.response.status).toBe(201);
+    expect(setup.request.verificationUrl).toBe(`${base}/connect/${setup.request.id}`);
+    expect(JSON.stringify(setup.request)).not.toContain(setup.token);
+    expect((await send(`/connect/${setup.request.id}`)).status).toBe(401);
+    expect(
+      (
+        await send(`/connect/${setup.request.id}/decision`, {
+          approve: true,
+          userCode: setup.request.userCode,
+        })
+      ).status,
+    ).toBe(401);
+    expect((await status('setup_invalid')).status).toBe(401);
+    expect(await (await status(setup.deviceCode)).json()).toEqual({ status: 'pending' });
+    const alice = await signup();
+    const details = await send(`/connect/${setup.request.id}`, undefined, alice.cookie);
+    expect(await details.json()).toMatchObject(preferences);
+    expect(
+      (
+        await send(
+          `/connect/${setup.request.id}/decision`,
+          { approve: true, userCode: 'WRONG' },
+          alice.cookie,
+        )
+      ).status,
+    ).toBe(400);
+    const approve = () =>
+      send(
+        `/connect/${setup.request.id}/decision`,
+        { approve: true, userCode: setup.request.userCode },
+        alice.cookie,
+      );
+    const responses = await Promise.all([approve(), approve()]);
+    expect(responses.map((r) => r.status)).toEqual([200, 200]);
+    const result = (await (await status(setup.deviceCode)).json()) as { status: string; agentId: string };
+    expect(result.status).toBe('approved');
+    const db = await mf.getD1Database('DB');
+    expect(await db.prepare('SELECT COUNT(*) count FROM agents').first()).toMatchObject({ count: 1 });
+    expect(
+      await db.prepare('SELECT user_id,token_hash FROM agents WHERE id=?').bind(result.agentId).first(),
+    ).toMatchObject({ user_id: alice.user.id, token_hash: sha(setup.token) });
+    const budget = await send(`/agents/${result.agentId}/budget`, undefined, alice.cookie);
+    expect(await budget.json()).toMatchObject({
+      dailyBudgetCents: 500,
+      autoApproveCents: 50,
+      maxTransactionCents: 300,
+      autonomousEnabled: true,
+      remainingCents: 500,
+    });
+    const bob = await signup('bob@example.com');
+    expect((await send(`/connect/${setup.request.id}`, undefined, bob.cookie)).status).toBe(404);
+    expect(
+      (
+        await send(
+          `/connect/${setup.request.id}/decision`,
+          { approve: true, userCode: setup.request.userCode },
+          bob.cookie,
+        )
+      ).status,
+    ).toBe(404);
+    expect((await send(`/agents/${result.agentId}/budget`, undefined, bob.cookie)).status).toBe(404);
+    const stored = JSON.stringify(await db.prepare('SELECT * FROM agent_setups').all());
+    expect(stored).not.toContain(setup.token);
+    expect(stored).not.toContain(setup.deviceCode);
+  });
+  it('resumes identical setup requests and rejects changed limits', async () => {
+    const setup = await start();
+    const resumed = await send('/connect', setup.input);
+    expect(await resumed.json()).toEqual(await (await send('/connect', setup.input)).json());
+    expect((await send('/connect', { ...setup.input, dailyBudgetCents: 600 })).status).toBe(409);
+    const db = await mf.getD1Database('DB');
+    expect(await db.prepare('SELECT COUNT(*) count FROM agent_setups').first()).toMatchObject({ count: 1 });
+  });
+  it('rejects invalid limits, expired and denied requests, and cross-origin decisions', async () => {
+    for (const invalid of [
+      { autoApproveCents: 301 },
+      { dailyBudgetCents: 299 },
+      { dailyBudgetCents: 1.2 },
+      { dailyBudgetCents: 100_001 },
+      { name: ' ' },
+    ])
+      expect((await start(invalid)).response.status).toBe(400);
+    const alice = await signup();
+    const denied = await start();
+    expect(
+      (
+        await send(
+          `/connect/${denied.request.id}/decision`,
+          { approve: false, userCode: denied.request.userCode },
+          alice.cookie,
+        )
+      ).status,
+    ).toBe(200);
+    expect(await (await status(denied.deviceCode)).json()).toEqual({ status: 'denied' });
+    expect(
+      await (
+        await send(
+          `/connect/${denied.request.id}/decision`,
+          { approve: true, userCode: denied.request.userCode },
+          alice.cookie,
+        )
+      ).json(),
+    ).toEqual({ status: 'denied' });
+    const expired = await start();
+    const body = { approve: true, userCode: expired.request.userCode };
+    expect(
+      (await send(`/connect/${expired.request.id}/decision`, body, alice.cookie, 'https://evil.example'))
+        .status,
+    ).toBe(403);
+    const db = await mf.getD1Database('DB');
+    await db
+      .prepare("UPDATE agent_setups SET expires_at='2000-01-01T00:00:00.000Z' WHERE id=?")
+      .bind(expired.request.id)
+      .run();
+    expect((await status(expired.deviceCode)).status).toBe(410);
+    expect((await send(`/connect/${expired.request.id}/decision`, body, alice.cookie)).status).toBe(410);
+    expect(await db.prepare('SELECT COUNT(*) count FROM agents').first()).toMatchObject({ count: 0 });
+  });
+  it('limits unauthenticated setup requests', async () => {
+    for (let n = 0; n < 10; n++) expect((await start()).response.status).toBe(201);
+    expect((await start()).response.status).toBe(429);
+  });
 });
 afterAll(async () => {
   await mf?.dispose();

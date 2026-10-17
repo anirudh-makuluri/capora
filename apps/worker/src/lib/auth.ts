@@ -77,5 +77,6 @@ export async function cleanupAuth(env: Env) {
     env.DB.prepare('DELETE FROM rate_limits WHERE expires_at <= ?').bind(Math.floor(now / 1000)),
     env.DB.prepare('DELETE FROM auth_sessions WHERE expires_at <= ?').bind(now),
     env.DB.prepare('DELETE FROM auth_verifications WHERE expires_at <= ?').bind(now),
+    env.DB.prepare('DELETE FROM agent_setups WHERE expires_at <= ?').bind(new Date(now).toISOString()),
   ]);
 }

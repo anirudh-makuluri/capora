@@ -36,6 +36,13 @@
       "when": 1791077602167,
       "tag": "0004_real_capabilities",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1792275832485,
+      "tag": "0005_agent_setup",
+      "breakpoints": true
     }
   ]
 }
