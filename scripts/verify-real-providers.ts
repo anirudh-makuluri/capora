@@ -13,6 +13,17 @@ const checks: [string, Record<string, unknown>, string][] = [
   ['github_repository', { repository: 'cloudflare/workers-sdk' }, 'repository'],
   ['code_scan', { code: 'eval(req.body.code);' }, 'findings'],
   ['document_fingerprint', { text: 'abc' }, 'sha256'],
+  [
+    'aws_lambda_estimate',
+    {
+      region: 'us-east-1',
+      architecture: 'arm64',
+      monthlyRequests: 1_000_000,
+      memoryMb: 512,
+      averageBilledDurationMs: 200,
+    },
+    'rates',
+  ],
 ];
 for (const [id, input, key] of checks) {
   const result = await invokeBuiltin(`builtin://${id}`, input);

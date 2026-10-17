@@ -16,6 +16,7 @@ export async function sourceJson(
   url: URL,
   signal: AbortSignal,
   headers?: Record<string, string>,
+  maxBytes?: number,
 ): Promise<unknown> {
   let response: Response;
   try {
@@ -42,7 +43,7 @@ export async function sourceJson(
       502,
     );
   }
-  return boundedJson(response);
+  return boundedJson(response, maxBytes);
 }
 
 export const record = (value: unknown): Record<string, unknown> => {

@@ -6,6 +6,7 @@ import { worldbankIndicators } from './worldbank_indicators';
 import { githubRepository } from './github_repository';
 import { codeScan } from './code_scan';
 import { documentFingerprint } from './document_fingerprint';
+import { awsLambdaEstimate } from './aws_lambda_estimate';
 import type { CapabilityDefinition } from './types';
 
 export function createCapabilityRegistry(definitions: readonly CapabilityDefinition[]) {
@@ -38,6 +39,7 @@ export const registeredCapabilities: readonly CapabilityDefinition[] = [
   githubRepository,
   codeScan,
   documentFingerprint,
+  awsLambdaEstimate,
 ];
 
 const registry = createCapabilityRegistry(registeredCapabilities);

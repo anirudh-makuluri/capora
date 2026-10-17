@@ -9,6 +9,7 @@ import {
   CircuitBoard,
   FileCheck2,
   Network,
+  Cloud,
 } from 'lucide-react';
 import type { Capability } from '@capora/types';
 export function Mark({ size = 32 }: { size?: number }) {
@@ -35,6 +36,7 @@ const icons = [
   FileCheck2,
   Network,
   CircuitBoard,
+  Cloud,
 ];
 export function ProviderIcon({
   capability,
@@ -54,6 +56,7 @@ export function ProviderIcon({
     'documentverify',
     'supplychain_radar',
     'patentlens',
+    'aws_lambda_estimate',
   ];
   const idx = ids.indexOf(capability.id);
   const Icon = icons[idx >= 0 ? idx : capability.type === 'agent' ? 3 : 1];
