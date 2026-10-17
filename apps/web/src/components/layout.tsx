@@ -19,7 +19,8 @@ import {
   LogOut,
 } from 'lucide-react';
 import { Mark } from './brand';
-import { Button, Dialog, CodeBlock, ErrorNotice, Skeleton } from './ui';
+import { Button, Dialog, ErrorNotice, Skeleton } from './ui';
+import { ConnectPrompt } from './connect-prompt';
 import { api, ApiError, useDashboard, useSession } from '../lib/api';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -206,26 +207,10 @@ function WorkspaceLayout() {
         open={connect}
         onOpenChange={setConnect}
         title="One connection. New capabilities."
-        description="Connect your agent to Capora through Streamable HTTP."
+        description="Let your AI client create and connect a Capora agent."
       >
         <div className="dialog-body">
-          <CodeBlock>
-            {JSON.stringify(
-              {
-                mcpServers: {
-                  capora: {
-                    url: `${window.location.origin}/mcp`,
-                    headers: { Authorization: 'Bearer YOUR_CAPORA_AGENT_TOKEN' },
-                  },
-                },
-              },
-              null,
-              2,
-            )}
-          </CodeBlock>
-          <p className="muted">
-            Create or regenerate a token under My agents. Credentials are displayed once.
-          </p>
+          <ConnectPrompt />
           <Button asChild>
             <Link to="/agents" onClick={() => setConnect(false)}>
               Manage agents <ArrowRight size={16} />

@@ -3,6 +3,7 @@ import { ArrowRight, Code2, Copy, Check, LockKeyhole, Terminal, ExternalLink } f
 import { useState } from 'react';
 import { TOOL_DESCRIPTIONS } from '@capora/mcp/tools';
 import { Button, Badge, CodeBlock } from '../components/ui';
+import { ConnectPrompt } from '../components/connect-prompt';
 export function Developers() {
   const [copied, setCopied] = useState(false);
   const endpoint = `${window.location.origin}/mcp`;
@@ -23,7 +24,7 @@ export function Developers() {
         </div>
         <Button variant="secondary" asChild>
           <Link to="/agents">
-            Create an agent <ArrowRight size={15} />
+            Manage agents <ArrowRight size={15} />
           </Link>
         </Button>
       </div>
@@ -33,6 +34,7 @@ export function Developers() {
             <Code2 size={13} /> STREAMABLE HTTP
           </Badge>
           <h2>Connect once. Acquire on demand.</h2>
+          <ConnectPrompt />
           <p>
             Capora exposes one authenticated remote MCP server with a stable set of marketplace tools.
             Providers are capabilities, so your agent’s tool list stays small as the marketplace grows.
@@ -52,7 +54,7 @@ export function Developers() {
               {copied ? <Check size={16} /> : <Copy size={16} />}
             </Button>
           </div>
-          <h3>MCP client configuration</h3>
+          <h3>Manual connection for an existing agent</h3>
           <p className="muted">
             Use this shape in clients supporting remote HTTP servers and custom authorization headers. Check
             your client’s configuration format.

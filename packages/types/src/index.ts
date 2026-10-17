@@ -34,6 +34,26 @@ export const policySchema = z
     message: 'Auto-approval cannot exceed the transaction limit.',
   });
 export type SpendingPolicy = z.infer<typeof policySchema>;
+export const agentSetupSchema = z
+  .object({
+    name: z.string().trim().min(2).max(80),
+    dailyBudgetCents: z.number().int().min(0).max(100_000),
+    autoApproveCents: z.number().int().min(0).max(100_000),
+    maxTransactionCents: z.number().int().min(0).max(100_000),
+  })
+  .refine((p) => p.autoApproveCents <= p.maxTransactionCents, {
+    message: 'Auto-approval cannot exceed the maximum per purchase.',
+  })
+  .refine((p) => p.maxTransactionCents <= p.dailyBudgetCents, {
+    message: 'Maximum per purchase cannot exceed the daily budget.',
+  });
+export type AgentSetupInput = z.infer<typeof agentSetupSchema>;
+export type AgentSetupRequest = AgentSetupInput & {
+  id: string;
+  userCode: string;
+  status: 'pending' | 'approved' | 'denied';
+  expiresAt: string;
+};
 export type Budget = SpendingPolicy & {
   spentTodayCents: number;
   reservedCents: number;

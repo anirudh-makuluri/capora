@@ -24,6 +24,7 @@ const Approvals = React.lazy(() => import('./pages/approvals').then((m) => ({ de
 const Providers = React.lazy(() => import('./pages/providers').then((m) => ({ default: m.Providers })));
 const Developers = React.lazy(() => import('./pages/developers').then((m) => ({ default: m.Developers })));
 const Demo = React.lazy(() => import('./pages/demo').then((m) => ({ default: m.Demo })));
+const ConnectAgent = React.lazy(() => import('./pages/connect').then((m) => ({ default: m.ConnectAgent })));
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { error: boolean }> {
   state = { error: false };
   static getDerivedStateFromError() {
@@ -59,6 +60,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
               <Route path="/" element={<Landing />} />
               <Route path="/login" element={<AuthPage />} />
               <Route path="/signup" element={<AuthPage signup />} />
+              <Route path="/connect/:id" element={<ConnectAgent />} />
               <Route element={<AppLayout />}>
                 <Route path="/marketplace" element={<Marketplace />} />
                 <Route path="/marketplace/:id" element={<CapabilityDetail />} />

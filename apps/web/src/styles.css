@@ -3610,3 +3610,59 @@ td {
   text-decoration: underline;
   text-underline-offset: 3px;
 }
+.connect-prompt {
+  margin: 22px 0;
+}
+.connect-prompt details {
+  margin-top: 16px;
+}
+.connect-prompt summary {
+  cursor: pointer;
+  font-size: 13px;
+}
+.connect-prompt pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 300px;
+  overflow: auto;
+  padding: 14px;
+  font-size: 12px;
+  background: #f3f5ef;
+  border-radius: 8px;
+}
+.connect-card {
+  width: min(100%, 540px);
+}
+.setup-code {
+  padding: 16px;
+  margin: 16px 0;
+  border: 1px solid #d7ddce;
+  border-radius: 8px;
+  text-align: center;
+  font-size: 28px;
+  letter-spacing: 0.15em;
+  font-family: monospace;
+}
+.setup-limits {
+  margin: 20px 0;
+}
+.setup-limits > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 10px 0;
+  border-bottom: 1px solid #e3e7dc;
+}
+.setup-limits dt {
+  color: #59644f;
+}
+.setup-limits dd {
+  margin: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  text-align: right;
+  min-width: 0;
+}
+.connect-card .action-row {
+  flex-wrap: wrap;
+}
