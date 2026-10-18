@@ -80,7 +80,6 @@ export function AgoraStory({
         </div>
       </div>
       <div className="ag-game-foot">
-        <span>● INTERACTIVE PIXEL STORY / CONCEPT PREVIEW</span>
         <div className="ag-dots" role="group" aria-label="Trade steps">
           {tradeSteps.map((step, i) => (
             <button

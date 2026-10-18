@@ -6,16 +6,13 @@ import {
   Bot,
   Blocks,
   ChartNoAxesCombined,
-  CircleHelp,
   Code2,
-  Command,
   CreditCard,
   Inbox,
   Menu,
   Plus,
   ShieldCheck,
   X,
-  ExternalLink,
   LogOut,
 } from 'lucide-react';
 import { Mark } from './brand';
@@ -84,13 +81,6 @@ function WorkspaceLayout() {
           </button>
         </div>
         <div className="sidebar-scroll">
-          <button className="workspace-switch" onClick={() => setConnect(true)}>
-            <span className="workspace-avatar">A</span>
-            <span>
-              Acme workspace<small>Sandbox workspace</small>
-            </span>
-            <Command size={15} />
-          </button>
           <div className="nav-caption">WORKSPACE</div>
           <nav>
             {nav.map(({ to, label, icon: Icon, count }) => (
@@ -124,21 +114,6 @@ function WorkspaceLayout() {
               <ArrowUpRight size={14} />
             </NavLink>
           </nav>
-          <div className="sidebar-bottom">
-            <div className="sidebar-promo">
-              <span className="promo-symbol">
-                <ShieldCheck size={22} />
-              </span>
-              <h3>Your agents. Your limits.</h3>
-              <p>Every purchase stays within the guardrails you set.</p>
-              <Link to="/agents">
-                Manage spending policies <ArrowRight size={14} />
-              </Link>
-            </div>
-            <Link to="/developers" className="sidebar-help">
-              <CircleHelp size={17} /> Documentation <ExternalLink size={13} />
-            </Link>
-          </div>
         </div>
         <div className="sidebar-account">
           <div className="user-row">

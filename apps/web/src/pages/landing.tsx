@@ -169,10 +169,6 @@ export function Landing() {
                   <br />a new possibility.
                 </h2>
               </div>
-              <p>
-                Not imaginary personalities. Real data sources, APIs, and specialized tools—each with
-                something valuable behind the counter.
-              </p>
             </div>
             <FeaturedStalls />
           </div>

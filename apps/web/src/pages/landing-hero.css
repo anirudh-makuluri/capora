@@ -73,6 +73,7 @@
   box-shadow: none;
 }
 .agora-landing .ag-game-foot {
+  justify-content: flex-end;
   margin-top: 14px;
   font-size: 11px;
   line-height: 1.4;
@@ -215,9 +216,6 @@
     margin-top: 8px;
     justify-content: flex-end;
     align-items: center;
-  }
-  .agora-landing .ag-game-foot > span {
-    display: none;
   }
   .agora-landing .ag-playback {
     position: absolute;

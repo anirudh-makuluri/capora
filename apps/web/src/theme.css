@@ -184,20 +184,6 @@ kbd,
 .sidebar-scroll {
   scrollbar-color: var(--rust) transparent;
 }
-.workspace-switch {
-  background: var(--ink-soft);
-  border: 2px solid #779093;
-  color: var(--parchment);
-  padding: 10px;
-}
-.workspace-switch small,
-.workspace-switch > svg {
-  color: #c6cfd0;
-}
-.workspace-avatar {
-  background: var(--gold-soft);
-  color: var(--ink);
-}
 .nav-caption {
   color: #c6cfd0;
   font-size: 11px;
@@ -224,21 +210,8 @@ kbd,
   color: var(--ink);
   background: var(--teal);
 }
-.sidebar-promo {
-  border: 2px solid #779093;
-  background: var(--ink-soft);
-}
-.sidebar-promo h3 {
-  color: var(--parchment);
-}
-.sidebar-promo p,
-.sidebar-help,
 .user-row small {
   color: #c6cfd0;
-}
-.sidebar-promo a,
-.promo-symbol {
-  color: var(--teal);
 }
 .user-row {
   color: var(--parchment);

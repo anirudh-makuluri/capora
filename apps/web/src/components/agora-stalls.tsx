@@ -8,7 +8,7 @@ import { useCapabilities } from '../lib/api';
 // Missing or disabled listings stay unavailable; sample prices never replace API data.
 const featured = [
   { id: 'gleif_entities', symbol: '▤', label: 'DATA · PUBLIC SOURCE' },
-  { id: 'brave_search', symbol: '⌕', label: 'API · AUTHENTICATED' },
+  { id: 'sd_repo_analysis', symbol: '⚒', label: 'AGENT · REPOSITORY ANALYSIS' },
   { id: 'code_scan', symbol: '⌘', label: 'AGENT · QUEUED' },
 ];
 

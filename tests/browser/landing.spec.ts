@@ -36,7 +36,7 @@ test('public landing uses current catalog metadata, accessible inspection, and e
   });
   const catalog = (await (await page.request.get('/api/capabilities')).json()) as Capability[];
   await ready(page);
-  for (const [i, id] of ['gleif_entities', 'brave_search', 'code_scan'].entries()) {
+  for (const [i, id] of ['gleif_entities', 'sd_repo_analysis', 'code_scan'].entries()) {
     const item = catalog.find((c) => c.id === id)!;
     const card = page.locator('.ag-stall').nth(i);
     await expect(card.locator('h3')).toHaveText(item.name);
