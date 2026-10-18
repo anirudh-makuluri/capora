@@ -50,7 +50,7 @@ export function AuthPage({ signup = false }: { signup?: boolean }) {
     <div className="login-page">
       <Link to="/" className="brand">
         <Mark />
-        Capora
+        Capora<span className="brand-period">.</span>
       </Link>
       <form className="login-card" onSubmit={submit}>
         <Badge tone="green">YOUR CAPABILITY WORKSPACE</Badge>
