@@ -127,7 +127,10 @@ test('five-stage exchange moves scroll from merchant to robot and coin toward me
 });
 
 for (const width of [1440, 390]) {
-  test(`reference typography, artwork and geometry match at ${width}px`, async ({ page, context }) => {
+  test(`reference palette, typography and original artwork remain at ${width}px`, async ({
+    page,
+    context,
+  }) => {
     await page.setViewportSize({ width, height: width === 390 ? 844 : 1050 });
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await ready(page);
@@ -143,18 +146,7 @@ for (const width of [1440, 390]) {
     );
     await reference.goto('/__landing-reference');
     await reference.evaluate(() => document.fonts.ready);
-    for (const selector of [
-      '.hero',
-      '.hero-grid',
-      '.hero h1',
-      '.hero-copy p',
-      '.badge',
-      '.game',
-      '.section h2',
-      '.ledger',
-      '.how-copy p',
-      '.decree',
-    ]) {
+    for (const selector of ['.section h2', '.ledger', '.how-copy p', '.decree']) {
       const actualSelector = selector.replace(/\.([\w-]+)/g, '.ag-$1');
       const actual = await page
         .locator(actualSelector)
@@ -194,10 +186,23 @@ for (const width of [1440, 390]) {
         });
       expect(actual, selector).toEqual(expected);
     }
-    for (const selector of ['.hero', '.hero-grid', '.hero h1', '.game']) {
-      const actual = await page.locator(selector.replace(/\.([\w-]+)/g, '.ag-$1')).boundingBox();
-      const expected = await reference.locator(selector).boundingBox();
-      expect(actual, selector).toEqual(expected);
+    // The revised hero responds to viewport height; its palette and typeface
+    // still match the source while the rest of the page keeps its source metrics.
+    for (const selector of ['.hero', '.hero h1', '.badge', '.game']) {
+      const appearance = (el: Element) => {
+        const css = getComputedStyle(el);
+        return [
+          css.fontFamily,
+          css.fontWeight,
+          css.color,
+          css.backgroundColor,
+          css.borderColor,
+          css.boxShadow,
+        ];
+      };
+      expect(await page.locator(selector.replace(/\.([\w-]+)/g, '.ag-$1')).evaluate(appearance)).toEqual(
+        await reference.locator(selector).evaluate(appearance),
+      );
     }
     // All original SVG nodes/attributes survive the JSX port, including the scroll and merchant.
     const svgNodes = (svg: SVGElement) =>
@@ -300,4 +305,71 @@ test('catalog failure or missing listing cannot create a fabricated offer', asyn
     'Stall unavailable',
     'Stall unavailable',
   ]);
+});
+
+test('complete hero, actions, artwork and ticker fit the first viewport', async ({ page }) => {
+  await ready(page);
+  await page.getByRole('button', { name: 'Trade step 5', exact: true }).click();
+  for (const [width, height] of [
+    [1920, 1080],
+    [1440, 900],
+    [1440, 768],
+    [1366, 768],
+    [1280, 600],
+    [1024, 768],
+    [820, 600],
+    [768, 1024],
+    [430, 932],
+    [390, 844],
+    [375, 667],
+    [390, 600],
+    [360, 600],
+  ]) {
+    await page.setViewportSize({ width, height });
+    await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+    for (const selector of [
+      'header',
+      '.ag-hero h1',
+      '.ag-hero-copy p',
+      '.ag-hero-actions',
+      '.ag-tiny-note',
+      '#game',
+      '.ag-dialogue',
+      '.ag-game-foot',
+      '.ag-playback',
+      '.ag-ticker',
+    ]) {
+      const element = page.locator(selector).first();
+      await expect(element, `${selector} at ${width}×${height}`).toBeInViewport({ ratio: 1 });
+    }
+    const ticker = await page.locator('.ag-ticker').boundingBox();
+    expect(ticker!.y + ticker!.height, `ticker bottom at ${width}×${height}`).toBeLessThanOrEqual(
+      height + 0.5,
+    );
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
+    // No caption overlays the acquired capability, even in the smallest scene.
+    const scroll = await page.locator('.ag-crystal').boundingBox();
+    const dialogue = await page.locator('.ag-dialogue').boundingBox();
+    expect(scroll!.y + scroll!.height).toBeLessThan(dialogue!.y);
+    if (
+      evidence &&
+      [
+        [1366, 768],
+        [1280, 600],
+        [1024, 768],
+        [390, 844],
+        [390, 600],
+      ].some(([w, h]) => w === width && h === height)
+    ) {
+      await page.screenshot({
+        path: `${evidenceDir}/first-view-${width}x${height}.png`,
+        animations: 'disabled',
+      });
+    }
+  }
+  // Very short landscape/zoomed layouts remain scrollable instead of clipping.
+  await page.setViewportSize({ width: 667, height: 320 });
+  await page.getByRole('button', { name: 'Watch a trade' }).scrollIntoViewIfNeeded();
+  await expect(page.getByRole('button', { name: 'Watch a trade' })).toBeInViewport({ ratio: 1 });
+  expect(await page.locator('.ag-hero').evaluate((el) => getComputedStyle(el).overflowY)).toBe('visible');
 });
