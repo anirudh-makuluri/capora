@@ -1,0 +1,274 @@
+/* Keep the complete introduction and ticker in the first viewport. Use natural
+   document flow so unusually short screens and enlarged text can still scroll. */
+.agora-landing {
+  --ag-header-height: 80px;
+  --ag-ticker-height: 52px;
+}
+.agora-landing .ag-hero {
+  display: grid;
+  align-items: center;
+  min-height: calc(100svh - var(--ag-header-height) - var(--ag-ticker-height));
+  padding: clamp(16px, 4svh, 42px) 0;
+  overflow: visible;
+}
+.agora-landing .ag-hero-grid {
+  grid-template-columns: 1fr 1.05fr;
+  gap: clamp(24px, 3vw, 46px);
+}
+.agora-landing .ag-hero-copy {
+  min-width: 0;
+  max-width: none;
+}
+.agora-landing .ag-hero h1 {
+  font-size: clamp(44px, min(4.5vw, 8svh), 62px);
+  line-height: 1.03;
+  margin-bottom: clamp(14px, 2.4svh, 22px);
+}
+.agora-landing .ag-badge {
+  padding: 7px 10px;
+  font-size: 11px;
+  margin-bottom: clamp(12px, 2svh, 20px);
+}
+.agora-landing .ag-hero-copy p {
+  font-size: clamp(15px, 2.2svh, 18px);
+  line-height: 1.5;
+  margin-bottom: clamp(14px, 2.5svh, 24px);
+}
+.agora-landing .ag-hero-actions {
+  display: flex;
+  gap: 12px;
+}
+.agora-landing .ag-hero-actions .ag-btn {
+  font-size: 16px;
+  padding: 12px 18px;
+}
+.agora-landing .ag-hero-proof {
+  font-size: 11px;
+  line-height: 1.4;
+  gap: 8px 16px;
+  margin-top: clamp(16px, 2.8svh, 26px);
+}
+.agora-landing .ag-tiny-note {
+  font-size: 11px;
+  line-height: 1.4;
+  margin-top: 12px;
+}
+.agora-landing .ag-hero-scene {
+  position: relative;
+  width: min(100%, calc((100svh - 320px) * 1.52));
+  margin: 0 auto;
+}
+.agora-landing .ag-game,
+.agora-landing .ag-game svg {
+  min-height: 0;
+}
+.agora-landing .ag-game svg {
+  height: auto;
+  aspect-ratio: 760 / 500;
+}
+.agora-landing .ag-hero-scene .ag-dialogue {
+  position: relative;
+  inset: auto;
+  border-width: 3px 0 0;
+  box-shadow: none;
+}
+.agora-landing .ag-game-foot {
+  margin-top: 14px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+.agora-landing .ag-playback {
+  font-size: 11px;
+  padding: 4px 0;
+  margin: 6px 0 0 auto;
+}
+.agora-landing .ag-ticker-track {
+  padding: 11px 0;
+}
+.agora-landing .ag-ticker span {
+  font-size: 15px;
+}
+.agora-landing .ag-ticker b {
+  font-size: 18px;
+  line-height: 24px;
+}
+@media (min-width: 781px) and (max-width: 1100px) {
+  .agora-landing .ag-hero-actions .ag-btn {
+    font-size: 14px;
+    padding: 10px;
+  }
+  .agora-landing .ag-game-tag {
+    font-size: 9px;
+    top: 10px;
+    left: 10px;
+    padding: 6px;
+  }
+  .agora-landing .ag-game-sandbox {
+    left: auto;
+    right: 10px;
+  }
+  .agora-landing .ag-dialogue {
+    left: 9px;
+    right: 9px;
+    bottom: 9px;
+    gap: 8px;
+    padding: 9px;
+  }
+  .agora-landing .ag-dialogue strong {
+    font-size: 12px;
+  }
+  .agora-landing .ag-dialogue small {
+    font-size: 10px;
+  }
+}
+@media (max-width: 780px) {
+  .agora-landing {
+    --ag-header-height: 64px;
+    --ag-ticker-height: 48px;
+  }
+  .agora-landing .ag-top {
+    min-height: 61px;
+  }
+  .agora-landing .ag-hero {
+    padding: clamp(12px, 2svh, 24px) 0;
+  }
+  .agora-landing .ag-hero-grid {
+    grid-template-columns: 1fr;
+    gap: clamp(12px, 2svh, 20px);
+  }
+  .agora-landing .ag-badge {
+    padding: 5px 8px;
+    font-size: 10px;
+    line-height: 1.2;
+    margin-bottom: 8px;
+  }
+  .agora-landing .ag-hero h1 {
+    font-size: clamp(28px, min(9.3vw, 4.8svh), 42px);
+    margin-bottom: 10px;
+  }
+  .agora-landing .ag-hero-copy p {
+    font-size: clamp(13px, 1.8svh, 15px);
+    line-height: 1.45;
+    margin-bottom: 12px;
+  }
+  .agora-landing .ag-hero-actions {
+    flex-wrap: nowrap;
+    gap: 10px;
+  }
+  .agora-landing .ag-hero-actions .ag-btn {
+    width: auto;
+    min-width: 0;
+    min-height: 44px;
+    font-size: 13px;
+    padding: 10px 8px;
+    flex: 1;
+  }
+  .agora-landing .ag-hero-proof {
+    font-size: 10px;
+    gap: 4px 10px;
+    margin-top: 10px;
+  }
+  .agora-landing .ag-hero-proof span:before {
+    margin-right: 5px;
+  }
+  .agora-landing .ag-tiny-note {
+    font-size: 10px;
+    margin-top: 6px;
+  }
+  .agora-landing .ag-hero-scene {
+    width: min(100%, max(228px, calc((100svh - 485px) * 1.52)), 500px);
+    container-type: inline-size;
+  }
+  .agora-landing .ag-game {
+    border-width: 4px;
+  }
+  .agora-landing .ag-game-tag {
+    font-size: clamp(7px, 2.5cqi, 10px);
+    padding: 4px;
+    top: 6px;
+    left: 6px;
+  }
+  .agora-landing .ag-game-sandbox {
+    left: auto;
+    right: 6px;
+  }
+  .agora-landing .ag-hero-scene .ag-dialogue {
+    padding: 4px 6px;
+    gap: 6px;
+  }
+  .agora-landing .ag-dialogue small {
+    font-size: 9px;
+  }
+  .agora-landing .ag-dialogue strong {
+    font-size: clamp(9px, 2.8cqi, 12px);
+    line-height: 1.25;
+    white-space: normal;
+    overflow: visible;
+  }
+  .agora-landing .ag-dialogue button {
+    min-width: 26px;
+    height: 26px;
+    font-size: 20px;
+  }
+  .agora-landing .ag-game-foot {
+    min-height: 26px;
+    margin-top: 8px;
+    justify-content: flex-end;
+    align-items: center;
+  }
+  .agora-landing .ag-game-foot > span {
+    display: none;
+  }
+  .agora-landing .ag-playback {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    margin: 0;
+  }
+  .agora-landing .ag-ticker-track {
+    padding: 9px 0;
+  }
+}
+@media (max-width: 780px) and (max-height: 700px) {
+  .agora-landing {
+    --ag-header-height: 56px;
+  }
+  .agora-landing .ag-top {
+    min-height: 53px;
+  }
+  .agora-landing .ag-hero {
+    padding: 7px 0;
+  }
+  .agora-landing .ag-hero-grid {
+    gap: 8px;
+  }
+  .agora-landing .ag-badge {
+    padding-block: 2px;
+    margin-bottom: 6px;
+  }
+  .agora-landing .ag-hero h1 {
+    margin-bottom: 8px;
+  }
+  .agora-landing .ag-hero-copy p {
+    margin-bottom: 8px;
+  }
+  .agora-landing .ag-hero-proof {
+    font-size: 9px;
+    gap: 4px 8px;
+    margin-top: 8px;
+  }
+  .agora-landing .ag-tiny-note {
+    margin-top: 4px;
+  }
+}
+@media (max-width: 780px) and (max-height: 620px) {
+  .agora-landing .ag-hero {
+    padding: 5px 0;
+  }
+  .agora-landing .ag-hero-grid {
+    gap: 6px;
+  }
+  .agora-landing .ag-hero h1 {
+    font-size: 26px;
+  }
+}

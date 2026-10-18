@@ -1,6 +1,6 @@
 # Pixel agora landing page review
 
-Implemented on `feat/pixel-agora-landing` for review. **No production deployment or merge was performed.** The existing workflow deploys only a successful `main` push/manual run with the deployment variable enabled; the feature branch and PR run verification only.
+The initial design was delivered in PR #4. This revision adjusts the hero after the request to show the complete introduction and horizontal ticker in the first viewport. The existing workflow deploys only a successful `main` push/manual run with the deployment variable enabled; feature branches and PRs run verification only.
 
 ## Design source and fidelity
 
@@ -10,8 +10,8 @@ The implementation ports the approved SVG geometry and effective CSS directly in
 
 Browser comparisons against the supplied source passed at **1440×1050** and **390×844**:
 
-- Identical hero, grid, heading and scene bounding boxes.
-- Matching computed fonts, sizes, weights, line heights, spacing, colors, backgrounds, visible borders, shadows and padding across the hero, section headings, ledger, narrative and spending decree.
+- Hero palette, font family, weight, backgrounds, border colors and shadows retained from the source. Its sizing and spacing now intentionally adapt to viewport height.
+- Matching computed fonts, sizes, weights, line heights, spacing, colors, backgrounds, visible borders, shadows and padding in the section headings, ledger, narrative and spending decree.
 - Every original SVG element and non-class attribute preserved in the JSX port. Class names are prefixed to isolate styles.
 - No horizontal page overflow at either width.
 
@@ -23,6 +23,20 @@ Comparison uses the supplied HTML locally. The hosted design URL was not accessi
 | Mobile, 390px   | [Screenshot](mobile-390.png)   | [Screenshot](reference-390.png)  |
 
 ![Implemented desktop landing page](desktop-1440.png)
+
+## First-viewport hero
+
+The header, headline, copy, primary buttons, full artwork, story controls and complete ticker fit without scrolling across 13 tested viewports: 1920×1080, 1440×900, 1440×768, 1366×768, 1280×600, 1024×768, 820×600, 768×1024, 430×932, 390×844, 375×667, 390×600 and 360×600.
+
+The hero uses viewport-height-aware spacing and type sizes, keeps two columns on tablets/laptops, and scales the SVG proportionally. The caption sits below the artwork so it cannot cover the acquired scroll. Mobile actions share one row with 44px touch targets. Very short landscape/zoomed layouts retain natural scrolling instead of clipping controls.
+
+| First screen            | Screenshot                      |
+| ----------------------- | ------------------------------- |
+| Laptop, 1366×768        | [View](first-view-1366x768.png) |
+| Short desktop, 1280×600 | [View](first-view-1280x600.png) |
+| Tablet, 1024×768        | [View](first-view-1024x768.png) |
+| Mobile, 390×844         | [View](first-view-390x844.png)  |
+| Short mobile, 390×600   | [View](first-view-390x600.png)  |
 
 ## Five-stage exchange
 
@@ -36,12 +50,13 @@ The story is an explicitly labeled illustration. It never requests a quote, buys
 | 4. Purchase    | Coin travels right (+94, −40); scroll travels left to x=503        | [Screenshot](desktop-stage-4-purchase.png)    | [Screenshot](mobile-stage-4.png) |
 | 5. Acquisition | Scroll overlaps robot chest at x=448; level-up follows its arrival | [Screenshot](desktop-stage-5-acquisition.png) | [Screenshot](mobile-stage-5.png) |
 
-Coordinates are in the original 760×500 SVG viewBox. Screenshots show settled stage positions; motion is checked separately under normal motion settings. The mobile scene preserves the reference's `xMidYMid slice` crop. Replay restarts arrival; numbered controls and the ledger select and hold a stage. Reduced motion disables automatic progression and settles each selected stage without continuous animation. A pause/play control also pauses decorative movement.
+Coordinates are in the original 760×500 SVG viewBox. Screenshots show settled stage positions; motion is checked separately under normal motion settings. The original SVG and `preserveAspectRatio` attribute remain intact; the frame now follows its 760:500 ratio, showing all of the artwork. Replay restarts arrival; numbered controls and the ledger select and hold a stage. Reduced motion disables automatic progression and settles each selected stage without continuous animation. A pause/play control also pauses decorative movement.
 
 ## Application integration and differences
 
 There are no framework constraints requiring a visual substitute. These deliberate production integrations are the remaining differences:
 
+- **Hero sizing:** Updated from fixed padding/minimum scene heights to viewport-aware sizing at the user's request. Hero metrics intentionally differ from the original HTML. Captions sit below the artwork; mobile scene tags and spacing become more compact on shorter screens.
 - **Featured listings:** Names, descriptions, prices, pricing units and execution modes come from the existing public `/api/capabilities` catalog for `gleif_entities`, `brave_search`, and `code_scan`. Full catalog descriptions are longer than the mockup copy; card previews show three lines, and inspection shows the complete description. The registry's actual name is “Company Registry Search.” Loading, failed, disabled or missing listings do not display invented prices or offer an inspection purchase path.
 - **Navigation:** “Explore the agora” opens `/marketplace`; “Open workspace” opens `/overview`; “Connect your agent” opens `/developers`, which already contains the setup prompt and MCP connection guide. Inspection links to the existing `/marketplace/:id` schema and purchase page. These destinations retain the existing sign-in redirect and return path. In-page navigation remains as designed.
 - **Demonstration text:** The hero and capability dialog explicitly state **FOR DEMONSTRATION PURPOSES ONLY**. The spending decree retains the reference's amounts but is labeled an example policy rather than implying that it reflects a signed-in agent's settings.
@@ -59,10 +74,10 @@ Verified locally on October 17, 2026 (America/Phoenix):
 | `pnpm lint`                 | Passed                                                       |
 | `pnpm build`                | Passed: Vite production assets and Wrangler **dry run only** |
 | `pnpm exec vitest run`      | 185 tests passed across 13 files                             |
-| `pnpm exec playwright test` | 15 browser tests passed, including 6 landing tests           |
+| `pnpm exec playwright test` | 16 browser tests passed, including 7 landing tests           |
 | `git diff --check`          | Passed                                                       |
 
-The full browser suite includes signup/sign-in, account isolation, short/mobile navigation, copied setup prompt → browser authorization → real MCP tool discovery, marketplace filtering and details, and the **disposable local payment simulator** purchase/approval/queued-execution flow. It uses isolated storage and credentials. These results do not claim a new hosted PayPal transaction or a deployed landing page.
+The full browser suite includes signup/sign-in, account isolation, short/mobile navigation, copied setup prompt → browser authorization → real MCP tool discovery, marketplace filtering and details, and the **disposable local payment simulator** purchase/approval/queued-execution flow. It uses isolated storage and credentials. These local results do not claim a new hosted PayPal transaction; production deployment and live verification are tracked separately by the release workflow.
 
 Read-only production checks returned `status: ok`, `paymentMode: sandbox`, and the expected enabled featured listings/prices ($0.20, $0.05, $3.00). No production account or payment mutation was made.
 
@@ -80,6 +95,7 @@ pnpm exec playwright test tests/browser/landing.spec.ts
 | File                                       | Purpose                                                                         |
 | ------------------------------------------ | ------------------------------------------------------------------------------- |
 | `apps/web/src/pages/landing.tsx`           | Native page structure, navigation and story state                               |
+| `apps/web/src/pages/landing-hero.css`      | Viewport-aware hero layout, artwork frame and ticker sizing                     |
 | `apps/web/src/pages/landing.css`           | Scoped reference styles and accessibility/integration additions                 |
 | `apps/web/src/components/agora-art.tsx`    | Original SVG artwork as JSX                                                     |
 | `apps/web/src/components/agora-story.tsx`  | Five stages, captions, controls and reduced-motion preference                   |

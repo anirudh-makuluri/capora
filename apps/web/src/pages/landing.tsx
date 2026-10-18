@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { AgoraStory, tradeSteps, useReducedMotion } from '../components/agora-story';
 import { FeaturedStalls } from '../components/agora-stalls';
 import './landing.css';
+import './landing-hero.css';
 
 export function Landing() {
   const reducedMotion = useReducedMotion();
