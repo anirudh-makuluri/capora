@@ -74,7 +74,7 @@ test('copied prompt creates an agent through browser authorization and verifies 
   await expect(page.getByRole('heading', { name: 'Your agent is ready.' })).toBeVisible();
   const finished = await run('finish', '--connection', started.connection);
   expect(finished.status).toBe('connected');
-  expect(finished.tools).toHaveLength(8);
+  expect(finished.tools).toHaveLength(9);
   expect(finished.budget).toMatchObject({
     dailyBudgetCents: 725,
     autoApproveCents: 40,

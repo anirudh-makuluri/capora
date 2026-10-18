@@ -43,6 +43,13 @@
       "when": 1792275832485,
       "tag": "0005_agent_setup",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1792284828295,
+      "tag": "0006_agent_capability_ratings",
+      "breakpoints": true
     }
   ]
 }

@@ -272,9 +272,9 @@ export function Marketplace() {
                       <Clock3 size={13} />
                       {latency(c.expectedLatencyMs)}
                     </span>
-                    <span>
+                    <span title="Capability ratings from verified usage">
                       <Star size={13} />
-                      {c.reputation ? c.reputation.toFixed(1) : 'Unrated'}
+                      {c.reviewCount ? `${c.rating.toFixed(1)} (${c.reviewCount})` : 'Unrated'}
                     </span>
                   </div>
                   <div className="cap-price-row">

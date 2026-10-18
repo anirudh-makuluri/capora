@@ -10,7 +10,7 @@ const agent = await rest<{ id: string; token: string }>('/agents', {
 });
 const client = await connect(agent.token);
 try {
-  assert.equal((await client.listTools()).tools.length, 8);
+  assert.equal((await client.listTools()).tools.length, 9);
   const options = await call<Capability[]>(client, 'search_capabilities', {
     query: 'company registry',
     max_budget: 5,
@@ -36,6 +36,12 @@ try {
   assert.equal(providerResult.synthetic, false);
   assert.equal(providerResult.source, 'GLEIF');
   assert.ok(providerResult.data.entities.length > 0);
+  assert.equal(result.ratingRequest?.required, true);
+  await call(client, 'rate_capability', {
+    invocation_id: result.id,
+    rating: 4,
+    body: 'Returned live GLEIF entity records with source provenance.',
+  });
   assert.equal(
     (await call<Invocation>(client, 'invoke_capability', { purchase_id: purchase.id, input })).id,
     result.id,
@@ -65,6 +71,12 @@ try {
     job = await call<Job>(client, 'get_job', { job_id: invocation.jobId });
   } while (['queued', 'running'].includes(job.status) && Date.now() < deadline);
   assert.equal(job.status, 'completed');
+  assert.equal(job.ratingRequest?.required, true);
+  await call(client, 'rate_capability', {
+    invocation_id: job.invocationId,
+    rating: 4,
+    body: 'Queued code scan completed and returned a structured result.',
+  });
   const budget = await call<Budget>(client, 'get_budget');
   assert.equal(budget.spentTodayCents, 320);
   assert.equal(budget.remainingCents, 2180);

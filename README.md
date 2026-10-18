@@ -66,7 +66,7 @@ apps/web             React + Vite + Tailwind + shadcn-style Radix UI + React Que
 apps/worker          Hono Worker, REST routes, auth, policies, commerce, gateway, jobs
 packages/db          Drizzle schema and tracked D1 SQL migrations
 packages/types       Shared DTOs, status models, Zod request validation
-packages/mcp         Official SDK server, eight stable marketplace tools
+packages/mcp         Official SDK server, nine stable marketplace tools
 packages/provider-sdk JSON Schema validation, provider metadata/request/error types
 packages/config      Policy defaults and bounded execution limits
 scripts              Setup, seed, official MCP demo/verifier, visual/accessibility checks
@@ -118,6 +118,7 @@ Client configuration formats vary; this is the generic remote-HTTP shape. See [t
 search_capabilities → get_capability → get_quote → purchase_capability
 → get_purchase_status (when approval/payment is pending)
 → invoke_capability → get_job (when execution is asynchronous)
+→ rate_capability (required after evaluating each completed or failed execution)
 get_budget
 ```
 

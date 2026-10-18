@@ -82,6 +82,12 @@ export const invokeSchema = z.object({
   purchase_id: z.string().min(1).max(100),
   input: z.record(z.string(), z.unknown()),
 });
+export const rateCapabilitySchema = z.object({
+  invocation_id: z.string().min(1).max(100),
+  rating: z.number().int().min(1).max(5),
+  body: z.string().trim().max(2000).optional(),
+});
+export type RateCapabilityInput = z.infer<typeof rateCapabilitySchema>;
 export const capabilityRegistrationSchema = z.object({
   providerId: z.string().min(1),
   name: z.string().min(3).max(100),
@@ -123,6 +129,8 @@ export interface Capability {
   avgLatencyMs: number;
   reliability: number;
   reputation: number;
+  rating: number;
+  reviewCount: number;
   successCount: number;
   failureCount: number;
   tags: string[];
@@ -176,6 +184,13 @@ export interface Purchase {
   provider?: string;
   agentName?: string;
 }
+export interface RatingRequest {
+  required: boolean;
+  tool: 'rate_capability';
+  invocationId: string;
+  capabilityId: string;
+  instructions: string;
+}
 export interface Invocation {
   id: string;
   purchaseId: string;
@@ -189,6 +204,7 @@ export interface Invocation {
   completedAt: string | null;
   jobId: string | null;
   capabilityName?: string;
+  ratingRequest?: RatingRequest;
 }
 export interface Job {
   id: string;
@@ -199,6 +215,7 @@ export interface Job {
   error: string | null;
   createdAt: string;
   completedAt: string | null;
+  ratingRequest?: RatingRequest;
 }
 export interface Provider {
   id: string;

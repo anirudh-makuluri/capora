@@ -27,6 +27,7 @@ import {
 } from './services/execution';
 import { getDashboard } from './services/dashboard';
 import { getStorageUsage } from './services/storage';
+import { rateCapability } from './services/reviews';
 import { demoProviders } from './providers/demo';
 import { authRoutes } from './routes/auth';
 import { agentRoutes } from './routes/agents';
@@ -143,6 +144,7 @@ app.all('/mcp', async (c) => {
       invoke: (purchaseId, input) => invokeCapability(c.env, agent.id, purchaseId, input),
       job: (jobId) => getJob(c.env, jobId, agent.id),
       budget: () => getBudget(c.env, agent.id),
+      rate: (input) => rateCapability(c.env, agent.id, input),
       purchaseStatus: async (purchaseId) => {
         const purchase = await getPurchase(c.env, purchaseId, agent.id);
         return ['approved', 'payment_pending'].includes(purchase.status)

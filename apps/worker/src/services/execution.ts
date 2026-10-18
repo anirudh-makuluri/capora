@@ -7,6 +7,7 @@ import { getExecutableCapabilityRecord } from './catalog';
 import { invokeProvider } from './gateway';
 import { audit } from '../lib/audit';
 import { readArtifact, writeArtifact } from './storage';
+import { getRatingRequest } from './reviews';
 import type { Env } from '../env';
 
 export interface JobMessage {
@@ -26,7 +27,12 @@ export async function getInvocation(env: Env, invocationId: string, agentId: str
     row.artifactKey && row.status === 'completed'
       ? await (await readArtifact(env, row.artifactKey))?.json()
       : row.result;
-  return { ...row, result: result ?? null, jobId: job?.id ?? null };
+  return {
+    ...row,
+    result: result ?? null,
+    jobId: job?.id ?? null,
+    ratingRequest: await getRatingRequest(env, row),
+  };
 }
 export async function invokeCapability(
   env: Env,
@@ -206,7 +212,7 @@ export async function getJob(env: Env, jobId: string, agentId: string): Promise<
     .get();
   if (!row) throw new DomainError('JOB_NOT_FOUND', 'Job not found for this agent.', 404);
   const invocation = await getInvocation(env, row.invocation.id, agentId);
-  return { ...row.job, result: invocation.result };
+  return { ...row.job, result: invocation.result, ratingRequest: invocation.ratingRequest };
 }
 export async function recoverJobs(env: Env) {
   const rows = await drizzle(env.DB).select().from(jobs).where(eq(jobs.status, 'queued')).limit(50);

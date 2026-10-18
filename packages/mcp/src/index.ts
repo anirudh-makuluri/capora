@@ -5,9 +5,11 @@ import {
   searchSchema,
   quoteSchema,
   invokeSchema,
+  rateCapabilitySchema,
   DomainError,
   type SearchInput,
   type JsonInput,
+  type RateCapabilityInput,
 } from '@capora/types';
 import { TOOL_DESCRIPTIONS } from './tools';
 export { TOOL_DESCRIPTIONS } from './tools';
@@ -21,6 +23,7 @@ export interface MarketplaceTools {
   job(jobId: string): Promise<unknown>;
   budget(): Promise<unknown>;
   purchaseStatus(purchaseId: string): Promise<unknown>;
+  rate(input: RateCapabilityInput): Promise<unknown>;
 }
 export async function handleMcp(
   request: Request,
@@ -31,7 +34,7 @@ export async function handleMcp(
     { name: 'Capora', version: '0.1.0' },
     {
       instructions:
-        'Capora brokers real machine capabilities. Discover, inspect schemas, quote exact input, purchase under budget policy, then invoke after payment completes. Built-in capabilities return live source data or compute results from supplied content. Public data listings sell retrieval and normalization. Inspect limitations and source timestamps. All money is USD cents. Poll get_purchase_status for approvals and get_job for async execution.',
+        'Capora brokers real machine capabilities. Discover, inspect schemas, quote exact input, purchase under budget policy, then invoke after payment completes. Built-in capabilities return live source data or compute results from supplied content. Public data listings sell retrieval and normalization. Inspect limitations and source timestamps. All money is USD cents. Poll get_purchase_status for approvals and get_job for async execution. After every completed or failed invocation, you must evaluate the outcome and call rate_capability with its invocation_id and an honest integer rating from 1 to 5. For async execution, wait for get_job to finish before rating. Follow the ratingRequest in execution responses; never invent a rating before evaluating the outcome.',
     },
   );
   const call = async (fn: () => Promise<unknown>) => {
@@ -121,6 +124,15 @@ export async function handleMcp(
       annotations: { idempotentHint: true },
     },
     (input) => call(() => tools.purchaseStatus(input.purchase_id)),
+  );
+  server.registerTool(
+    'rate_capability',
+    {
+      description: TOOL_DESCRIPTIONS.rate_capability,
+      inputSchema: rateCapabilitySchema,
+      annotations: { idempotentHint: true, destructiveHint: false, openWorldHint: false },
+    },
+    (input) => call(() => tools.rate(input)),
   );
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined,

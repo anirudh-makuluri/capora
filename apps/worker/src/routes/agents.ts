@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { drizzle, agents, spendingPolicies, quotes } from '@capora/db';
 import { eq } from 'drizzle-orm';
-import { policySchema, quoteSchema, invokeSchema, DomainError } from '@capora/types';
+import { policySchema, quoteSchema, invokeSchema, rateCapabilitySchema, DomainError } from '@capora/types';
 import { createAgent, ownAgent, rateLimit } from '../services/auth';
 import {
   getBudget,
@@ -13,6 +13,7 @@ import {
   cancelPurchase,
 } from '../services/commerce';
 import { invokeCapability, getJob, getInvocation } from '../services/execution';
+import { rateCapability } from '../services/reviews';
 import { hash, token } from '../lib/crypto';
 import { audit } from '../lib/audit';
 import type { AppEnv } from '../env';
@@ -103,6 +104,9 @@ agentRoutes.post('/:id/invocations', async (c) => {
   const { purchase_id, input } = invokeSchema.parse(await c.req.json());
   return c.json(await invokeCapability(c.env, c.req.param('id'), purchase_id, input));
 });
+agentRoutes.post('/:id/ratings', async (c) =>
+  c.json(await rateCapability(c.env, c.req.param('id'), rateCapabilitySchema.parse(await c.req.json()))),
+);
 agentRoutes.get('/:id/purchases/:purchaseId', async (c) =>
   c.json(await getPurchase(c.env, c.req.param('purchaseId'), c.req.param('id'))),
 );
