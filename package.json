@@ -21,6 +21,7 @@
     "catalog:sync": "tsx scripts/seed.ts --catalog-only",
     "db:generate": "drizzle-kit generate --config packages/db/drizzle.config.ts",
     "auth:bootstrap-owner": "tsx scripts/bootstrap-owner.ts",
+    "auth:provision-admin": "tsx scripts/provision-admin.ts",
     "cf:types": "pnpm --filter @capora/worker cf:types",
     "deploy:check": "tsx scripts/check-deployment.ts",
     "deploy:smoke": "tsx scripts/smoke-deployment.ts",

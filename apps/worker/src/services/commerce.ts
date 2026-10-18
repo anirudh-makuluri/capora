@@ -126,7 +126,7 @@ export async function purchaseQuote(env: Env, agentId: string, quoteId: string):
     SELECT ?, q.id, q.agent_id, q.capability_id, q.price_cents,
       CASE WHEN p.autonomous_enabled = 1 AND q.price_cents <= p.auto_approve_cents THEN 'approved' ELSE 'pending_approval' END,
       ?, q.reason, ?, ?, ? FROM quotes q JOIN spending_policies p ON p.agent_id=q.agent_id JOIN agents a ON a.id=q.agent_id JOIN capabilities c ON c.id=q.capability_id
-    WHERE q.id=? AND q.agent_id=? AND a.status='active' AND q.expires_at>? AND c.enabled=1 AND c.version=q.capability_version AND q.price_cents<=p.max_transaction_cents
+    WHERE q.id=? AND q.agent_id=? AND a.status='active' AND q.expires_at>? AND c.enabled=1 AND c.removed_at IS NULL AND c.version=q.capability_version AND q.price_cents<=p.max_transaction_cents
     AND q.price_cents + COALESCE((SELECT SUM(amount_cents) FROM purchases WHERE agent_id=q.agent_id AND budget_day=? AND status IN ('pending_approval','approved','payment_pending','purchased')),0)<=p.daily_budget_cents
     ON CONFLICT(quote_id) DO NOTHING`,
   )

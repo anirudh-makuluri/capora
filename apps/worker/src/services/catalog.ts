@@ -24,7 +24,7 @@ export function isArchivedBootstrapFixture(row: typeof capabilities.$inferSelect
 }
 export async function getExecutableCapabilityRecord(env: Env, capabilityId: string) {
   const row = await getCapabilityRecord(env, capabilityId, false);
-  if (!row.enabled && !isArchivedBootstrapFixture(row))
+  if (row.removedAt || (!row.enabled && !isArchivedBootstrapFixture(row)))
     throw new DomainError('CAPABILITY_UNAVAILABLE', 'This capability is unavailable.', 404);
   return row;
 }
@@ -71,7 +71,7 @@ export async function getCapabilityRecord(env: Env, capabilityId: string, enable
     .from(capabilities)
     .where(eq(capabilities.id, capabilityId))
     .get();
-  if (!row || (enabled && !row.enabled))
+  if (!row || row.removedAt || (enabled && !row.enabled))
     throw new DomainError('CAPABILITY_UNAVAILABLE', 'This capability is unavailable.', 404);
   return row;
 }
@@ -156,14 +156,17 @@ export async function searchCapabilities(env: Env, input: SearchInput, agentId?:
         .first<{ auto_approve_cents: number; autonomous_enabled: number }>()
     : null;
   return rankCapabilities(
-    rows.map(({ capability, provider }) => ({
-      ...publicCapability(capability, provider, stats.get(capability.id)),
-      ...(policy
-        ? {
-            approvalRequired: !policy.autonomous_enabled || capability.priceCents > policy.auto_approve_cents,
-          }
-        : {}),
-    })),
+    rows
+      .filter(({ capability }) => !capability.removedAt)
+      .map(({ capability, provider }) => ({
+        ...publicCapability(capability, provider, stats.get(capability.id)),
+        ...(policy
+          ? {
+              approvalRequired:
+                !policy.autonomous_enabled || capability.priceCents > policy.auto_approve_cents,
+            }
+          : {}),
+      })),
     input,
   );
 }

@@ -63,6 +63,7 @@ function WorkspaceLayout() {
     [
       ...nav,
       { to: '/providers', label: 'Provider console' },
+      { to: '/admin', label: 'Admin dashboard' },
       { to: '/developers', label: 'Developers' },
       { to: '/demo', label: 'Agent playground' },
     ].find((n) => location.pathname.startsWith(n.to))?.label ?? 'Marketplace';
@@ -111,6 +112,12 @@ function WorkspaceLayout() {
               <Plus size={18} />
               <span>Provider console</span>
             </NavLink>
+            {session?.isAdmin && (
+              <NavLink to="/admin" onClick={() => setMobileOpen(false)} className="nav-link">
+                <ShieldCheck size={18} />
+                <span>Admin dashboard</span>
+              </NavLink>
+            )}
             <NavLink to="/developers" onClick={() => setMobileOpen(false)} className="nav-link">
               <Code2 size={18} />
               <span>Developers</span>

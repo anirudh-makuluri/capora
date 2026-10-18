@@ -8,6 +8,7 @@ import { unseal } from '../lib/crypto';
 import { demoProviders } from '../providers/demo';
 import { readArtifact } from './storage';
 import type { Env } from '../env';
+import { getProviderHostSettings } from './provider-hosts';
 import { invokeBuiltin } from '../providers/live';
 import { getRegisteredCapability } from '../providers/capabilities/registry';
 
@@ -54,6 +55,14 @@ export function validateEndpoint(
   )
     throw new DomainError('ENDPOINT_NOT_ALLOWED', 'Private networks and IP literals are not allowed.');
 }
+export async function validateProviderEndpoint(endpoint: string, env: Env, dataset = false) {
+  const internal =
+    endpoint.startsWith('builtin://') ||
+    endpoint.startsWith('demo://') ||
+    (dataset && endpoint.startsWith('r2://datasets/'));
+  const hosts = internal ? '' : (await getProviderHostSettings(env)).hosts.join(',');
+  validateEndpoint(endpoint, { PROVIDER_ALLOWED_HOSTS: hosts }, dataset);
+}
 export async function invokeProvider(
   env: Env,
   capability: typeof capabilities.$inferSelect,
@@ -61,7 +70,7 @@ export async function invokeProvider(
   input: Record<string, unknown>,
 ): Promise<unknown> {
   validatePayload(capability.inputSchema, input);
-  validateEndpoint(capability.endpoint, env, capability.type === 'dataset');
+  await validateProviderEndpoint(capability.endpoint, env, capability.type === 'dataset');
   if (capability.endpoint.startsWith('builtin://')) {
     const output = await invokeBuiltin(capability.endpoint, input, env);
     validatePayload(capability.outputSchema, output, true);

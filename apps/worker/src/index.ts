@@ -33,6 +33,7 @@ import { authRoutes } from './routes/auth';
 import { agentRoutes } from './routes/agents';
 import { providerRoutes } from './routes/providers';
 import { billingRoutes } from './routes/billing';
+import { adminRoutes } from './routes/admin';
 import { publicConnectRoutes, connectRoutes } from './routes/connect';
 import type { AppEnv, Env } from './env';
 
@@ -120,6 +121,7 @@ app.get('/api/storage/usage', async (c) => c.json(await getStorageUsage(c.env)))
 app.route('/api/agents', agentRoutes);
 app.route('/api/connect', connectRoutes);
 app.route('/api/providers', providerRoutes);
+app.route('/api/admin', adminRoutes);
 app.route('/api/billing', billingRoutes);
 app.post('/api/approvals/:purchaseId', async (c) => {
   const { approve } = z.object({ approve: z.boolean() }).parse(await c.req.json());

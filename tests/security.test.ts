@@ -6,6 +6,13 @@ import { companySchema, outputSchema } from './fixtures/catalog';
 import type { Env } from '../apps/worker/src/env';
 import type { capabilities } from '../packages/db/src/index';
 
+// These unit tests isolate upstream HTTP handling; admin integration tests exercise D1 settings.
+vi.mock('../apps/worker/src/services/provider-hosts', () => ({
+  getProviderHostSettings: async (env: Pick<Env, 'PROVIDER_ALLOWED_HOSTS'>) => ({
+    hosts: env.PROVIDER_ALLOWED_HOSTS.split(','),
+  }),
+}));
+
 describe('Gateway and credential boundaries', () => {
   afterEach(() => vi.unstubAllGlobals());
   it('canonical input hashes do not depend on key order', async () =>

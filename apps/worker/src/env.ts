@@ -7,4 +7,7 @@ export type Env = {
   PAYPAL_CLIENT_ID?: string;
   PAYPAL_CLIENT_SECRET?: string;
 };
-export type AppEnv = { Bindings: Env; Variables: { userId: string; correlationId: string } };
+export type AppEnv = {
+  Bindings: Env;
+  Variables: { userId: string; userEmail: string; correlationId: string };
+};

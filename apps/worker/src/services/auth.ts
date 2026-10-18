@@ -61,6 +61,7 @@ export async function requireHuman(c: Context<AppEnv>) {
   const user = await drizzle(c.env.DB).select().from(users).where(eq(users.id, userId)).get();
   if (!user) throw new DomainError('UNAUTHORIZED', 'Workspace user does not exist.', 401);
   c.set('userId', user.id);
+  c.set('userEmail', user.email);
   return user;
 }
 export async function ownAgent(env: Env, agentId: string, userId: string) {

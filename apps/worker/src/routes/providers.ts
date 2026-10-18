@@ -1,13 +1,13 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { drizzle, providers, capabilities } from '@capora/db';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, isNull, sql } from 'drizzle-orm';
 import { capabilityRegistrationSchema, DomainError } from '@capora/types';
 import { validateSchemaDefinition } from '@capora/provider-sdk';
-import { validateEndpoint } from '../services/gateway';
+import { validateProviderEndpoint } from '../services/gateway';
 import { id, seal } from '../lib/crypto';
 import { publicCapability } from '../services/catalog';
-import { audit } from '../lib/audit';
+import { registerCapability } from '../services/provider-registration';
 import { writeArtifact } from '../services/storage';
 import type { AppEnv, Env } from '../env';
 
@@ -41,6 +41,7 @@ providerRoutes.get('/capabilities', async (c) => {
       endpoint: capability.endpoint,
       httpMethod: capability.httpMethod,
       hasSecret: Boolean(capability.secretEncrypted),
+      removedAt: capability.removedAt,
     })),
   );
 });
@@ -53,30 +54,7 @@ providerRoutes.post('/datasets', async (c) => {
 providerRoutes.post('/capabilities', async (c) => {
   const body = capabilityRegistrationSchema.parse(await c.req.json());
   await ownProvider(c.env, body.providerId, c.get('userId'));
-  validateEndpoint(body.endpoint, c.env, body.type === 'dataset');
-  if (body.endpoint.startsWith('r2://') && !body.endpoint.startsWith(`r2://datasets/${c.get('userId')}/`))
-    throw new DomainError('INVALID_DATASET', 'Dataset must belong to your workspace.');
-  validateSchemaDefinition(body.inputSchema);
-  validateSchemaDefinition(body.outputSchema);
-  const { secret, ...fields } = body;
-  const capabilityId = id('cap');
-  await drizzle(c.env.DB)
-    .insert(capabilities)
-    .values({
-      ...fields,
-      id: capabilityId,
-      synthetic: body.endpoint.startsWith('demo://'),
-      secretEncrypted: secret ? await seal(secret, c.env.ENCRYPTION_KEY) : null,
-      createdAt: new Date().toISOString(),
-    });
-  await audit(
-    c.env,
-    c.get('userId'),
-    'capability_registered',
-    `${body.name} added to the marketplace`,
-    capabilityId,
-  );
-  return c.json({ id: capabilityId }, 201);
+  return c.json(await registerCapability(c.env, c.get('userId'), c.get('userId'), body), 201);
 });
 providerRoutes.put('/capabilities/:id', async (c) => {
   const db = drizzle(c.env.DB);
@@ -87,26 +65,31 @@ providerRoutes.put('/capabilities/:id', async (c) => {
     .get();
   if (!existing) throw new DomainError('NOT_FOUND', 'Capability not found.', 404);
   await ownProvider(c.env, existing.providerId, c.get('userId'));
+  if (existing.removedAt)
+    throw new DomainError('CAPABILITY_REMOVED', 'This capability was removed by an admin.', 409);
   const body = capabilityRegistrationSchema.parse(await c.req.json());
   if (body.providerId !== existing.providerId)
     throw new DomainError('INVALID_PROVIDER', 'A capability cannot be moved to another provider.');
-  validateEndpoint(body.endpoint, c.env, body.type === 'dataset');
+  await validateProviderEndpoint(body.endpoint, c.env, body.type === 'dataset');
   if (body.endpoint.startsWith('r2://') && !body.endpoint.startsWith(`r2://datasets/${c.get('userId')}/`))
     throw new DomainError('INVALID_DATASET', 'Dataset must belong to your workspace.');
   validateSchemaDefinition(body.inputSchema);
   validateSchemaDefinition(body.outputSchema);
   const { secret, ...fields } = body;
-  await db
+  const updated = await db
     .update(capabilities)
     .set({
       ...fields,
       synthetic: body.endpoint.startsWith('demo://'),
-      version: existing.version + 1,
+      version: sql`${capabilities.version} + 1`,
       ...(secret !== undefined
         ? { secretEncrypted: secret ? await seal(secret, c.env.ENCRYPTION_KEY) : null }
         : {}),
     })
-    .where(eq(capabilities.id, existing.id));
+    .where(and(eq(capabilities.id, existing.id), isNull(capabilities.removedAt)))
+    .returning({ id: capabilities.id })
+    .get();
+  if (!updated) throw new DomainError('CAPABILITY_REMOVED', 'This capability was removed by an admin.', 409);
   return c.json({ ok: true });
 });
 providerRoutes.patch('/capabilities/:id', async (c) => {
@@ -118,7 +101,15 @@ providerRoutes.patch('/capabilities/:id', async (c) => {
     .get();
   if (!capability) throw new DomainError('NOT_FOUND', 'Capability not found.', 404);
   await ownProvider(c.env, capability.providerId, c.get('userId'));
+  if (capability.removedAt)
+    throw new DomainError('CAPABILITY_REMOVED', 'This capability was removed by an admin.', 409);
   const { enabled } = z.object({ enabled: z.boolean() }).parse(await c.req.json());
-  await db.update(capabilities).set({ enabled }).where(eq(capabilities.id, capability.id));
+  const updated = await db
+    .update(capabilities)
+    .set({ enabled })
+    .where(and(eq(capabilities.id, capability.id), isNull(capabilities.removedAt)))
+    .returning({ id: capabilities.id })
+    .get();
+  if (!updated) throw new DomainError('CAPABILITY_REMOVED', 'This capability was removed by an admin.', 409);
   return c.json({ ok: true });
 });

@@ -10,6 +10,7 @@ export const requiredSecrets = [
   'DEMO_PROVIDER_SECRET',
   'PAYPAL_CLIENT_ID',
   'PAYPAL_CLIENT_SECRET',
+  'ADMIN_EMAILS',
   ...providerVariableNames,
 ];
 

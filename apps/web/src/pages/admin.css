@@ -1,0 +1,60 @@
+.admin-hosts {
+  margin-bottom: 28px;
+}
+.admin-hosts .panel-heading p,
+.admin-catalog .panel-heading p {
+  margin-top: 6px;
+}
+.admin-hosts textarea {
+  width: 100%;
+  font-family: monospace;
+  resize: vertical;
+}
+.admin-host-note {
+  margin: 12px 0 20px;
+}
+.admin-host-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.admin-host-footer > span {
+  font-size: 12px;
+}
+.admin-search {
+  margin: 16px 24px 0;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.admin-search input {
+  width: 100%;
+}
+.admin-feedback {
+  margin: 8px 24px;
+}
+.admin-table {
+  min-width: 800px;
+}
+.admin-endpoint {
+  display: block;
+  max-width: 250px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: monospace;
+  font-size: 12px;
+}
+@media (max-width: 720px) {
+  .admin-hosts .panel-heading,
+  .admin-catalog .panel-heading {
+    align-items: flex-start;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .admin-host-footer .action-row {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+}

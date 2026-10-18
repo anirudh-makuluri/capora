@@ -134,6 +134,7 @@ export const capabilities = sqliteTable(
     tags: text('tags', { mode: 'json' }).$type<string[]>().notNull(),
     async: integer('async', { mode: 'boolean' }).notNull().default(false),
     enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
+    removedAt: text('removed_at'),
     synthetic: integer('synthetic', { mode: 'boolean' }).notNull().default(false),
     version: integer('version').notNull().default(1),
     documentationUrl: text('documentation_url'),
@@ -145,6 +146,15 @@ export const capabilities = sqliteTable(
     index('capabilities_provider_idx').on(t.providerId),
   ],
 );
+export const operatorSettings = sqliteTable('operator_settings', {
+  key: text('key').primaryKey(),
+  value: text('value', { mode: 'json' }).$type<string[]>().notNull(),
+  revision: integer('revision').notNull().default(1),
+  updatedAt: text('updated_at').notNull(),
+  updatedBy: text('updated_by')
+    .notNull()
+    .references(() => users.id),
+});
 export const quotes = sqliteTable(
   'quotes',
   {

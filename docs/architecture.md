@@ -51,7 +51,7 @@ A rejected or failed record is retained for audit. A provider failure does not r
 
 ## Provider gateway
 
-Only operator-approved exact HTTPS hostnames can be registered. Private/literal IP destinations, credentials in URLs, non-HTTPS endpoints, nonstandard ports, and redirects are rejected. Allowlist membership is operator trust, not a claim that arbitrary provider content is safe. Protect the allowlist and review DNS ownership when onboarding providers.
+Only operator-approved exact HTTPS hostnames can be registered. The admin dashboard stores the authoritative host list in D1; until the first save, it falls back to `PROVIDER_ALLOWED_HOSTS`. Registration and invocation both check the current list. Private/literal IP destinations, credentials in URLs, non-HTTPS endpoints, nonstandard ports, and redirects are rejected. Allowlist membership is operator trust, not a claim that arbitrary provider content is safe. Protect the allowlist and review DNS ownership when onboarding providers. Server-side admin authorization requires a human session and an exact email match in `ADMIN_EMAILS`. Public signup reserves those addresses for operator provisioning. Admin capability removal blocks provider re-enablement and preserves historical records.
 
 Provider schemas use a Workers-compatible JSON Schema validator without runtime code generation. Schema depth, references, and unsafe regular expressions are bounded. Request and response bodies are capped at 256 KiB and calls time out after 25 seconds. Both inputs and outputs are validated. Bearer credentials are decrypted only in the server gateway and never returned in catalog DTOs.
 

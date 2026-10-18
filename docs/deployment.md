@@ -39,7 +39,8 @@ Edit `apps/worker/wrangler.jsonc`:
 - Replace the all-zero local `database_id` with the ID returned by `d1 create`.
 - Set `CAPORA_BASE_URL` to the final HTTPS Worker/custom-domain origin, without a trailing slash. For a first launch, use `https://capora.YOUR_SUBDOMAIN.workers.dev`; find or register your Workers subdomain in the Cloudflare dashboard. You can add a custom domain later.
 - Keep `DEV_MODE=false`, `PAYMENT_MODE=sandbox`, and `PAYPAL_ENVIRONMENT=sandbox`.
-- Populate `PROVIDER_ALLOWED_HOSTS` only with exact, trusted public HTTPS provider hostnames. Empty means only protected built-in demos and owned R2 datasets can execute.
+- Populate `PROVIDER_ALLOWED_HOSTS` only with exact, trusted public HTTPS provider hostnames. This is the initial list until the first [Admin dashboard](admin.md) save; afterward the saved D1 list is authoritative, including when empty.
+- Set the server-only `ADMIN_EMAILS` Worker secret to the exact trusted admin account emails. Local `.dev.vars` values are not deployed. An absent or empty list disables admin access.
 
 The root configuration is the canonical sandbox deployment. For multiple environments, duplicate bindings/vars using Wrangler environments and provision distinct D1/R2/Queue resources; Wrangler does not inherit these bindings across environments.
 

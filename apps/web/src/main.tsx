@@ -23,6 +23,7 @@ const Transactions = React.lazy(() =>
 );
 const Approvals = React.lazy(() => import('./pages/approvals').then((m) => ({ default: m.Approvals })));
 const Providers = React.lazy(() => import('./pages/providers').then((m) => ({ default: m.Providers })));
+const Admin = React.lazy(() => import('./pages/admin').then((m) => ({ default: m.Admin })));
 const Developers = React.lazy(() => import('./pages/developers').then((m) => ({ default: m.Developers })));
 const Demo = React.lazy(() => import('./pages/demo').then((m) => ({ default: m.Demo })));
 const ConnectAgent = React.lazy(() => import('./pages/connect').then((m) => ({ default: m.ConnectAgent })));
@@ -70,6 +71,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
                 <Route path="/transactions" element={<Transactions />} />
                 <Route path="/approvals" element={<Approvals />} />
                 <Route path="/providers" element={<Providers />} />
+                <Route path="/admin" element={<Admin />} />
                 <Route path="/developers" element={<Developers />} />
                 <Route path="/demo" element={<Demo />} />
                 <Route

@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Plus, ArrowRight, Activity, DollarSign, Blocks, Pencil, Upload, Check, Network } from 'lucide-react';
-import { money, type Capability, type CapabilityRegistration } from '@capora/types';
+import { money, type Capability, type CapabilityRegistration, type ManagedCapability } from '@capora/types';
 import { api, useAction, useDashboard, latency } from '../lib/api';
 import { Button, Badge, Dialog, Field, ErrorNotice, Empty } from '../components/ui';
 import { ProviderIcon } from '../components/brand';
 import { Stat } from './overview';
-type ProviderCapability = Capability & { endpoint: string; httpMethod: 'POST' | 'GET'; hasSecret: boolean };
+type ProviderCapability = ManagedCapability;
 export function Providers() {
   const { data: dashboard } = useDashboard();
   const { data: caps, error } = useQuery({
@@ -126,15 +126,21 @@ export function Providers() {
                       className="switch"
                       type="checkbox"
                       checked={c.enabled}
-                      disabled={toggle.isPending}
+                      disabled={toggle.isPending || Boolean(c.removedAt)}
                       onChange={(e) => toggle.mutate({ id: c.id, enabled: e.target.checked })}
                     />
                   </td>
                   <td>
-                    <Button variant="ghost" size="sm" onClick={() => setEdit(c)}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={Boolean(c.removedAt)}
+                      onClick={() => setEdit(c)}
+                    >
                       <Pencil size={14} />
                       Edit
                     </Button>
+                    {c.removedAt && <Badge tone="red">Removed by admin</Badge>}
                   </td>
                 </tr>
               ))}
@@ -229,10 +235,19 @@ export function Providers() {
     </>
   );
 }
-function CapabilityForm({ initial, onClose }: { initial?: ProviderCapability; onClose: () => void }) {
+export function CapabilityForm({
+  initial,
+  onClose,
+  adminProviders,
+}: {
+  initial?: ProviderCapability;
+  onClose: () => void;
+  adminProviders?: { id: string; name: string }[];
+}) {
   const { data } = useDashboard();
+  const providerOptions = adminProviders ?? data?.providers ?? [];
   const [form, setForm] = useState({
-    providerId: initial?.providerId ?? data?.providers[0]?.id ?? '',
+    providerId: initial?.providerId ?? providerOptions[0]?.id ?? '',
     name: initial?.name ?? '',
     description: initial?.description ?? '',
     type: initial?.type ?? 'api',
@@ -304,7 +319,7 @@ function CapabilityForm({ initial, onClose }: { initial?: ProviderCapability; on
       enabled: form.enabled,
       ...(form.documentationUrl ? { documentationUrl: form.documentationUrl } : {}),
     };
-    await api(`/providers/capabilities${initial ? `/${initial.id}` : ''}`, {
+    await api(`/${adminProviders ? 'admin' : 'providers'}/capabilities${initial ? `/${initial.id}` : ''}`, {
       method: initial ? 'PUT' : 'POST',
       body,
     });
@@ -349,7 +364,7 @@ function CapabilityForm({ initial, onClose }: { initial?: ProviderCapability; on
               onChange={(e) => update('providerId', e.target.value)}
               disabled={Boolean(initial)}
             >
-              {data?.providers.map((p) => (
+              {providerOptions.map((p) => (
                 <option value={p.id} key={p.id}>
                   {p.name}
                 </option>
@@ -459,7 +474,10 @@ function CapabilityForm({ initial, onClose }: { initial?: ProviderCapability; on
             />
           </Field>
         </div>
-        {form.type === 'dataset' && (
+        {form.type === 'dataset' && adminProviders && (
+          <p className="muted">Use an R2 dataset already uploaded to the selected provider’s workspace.</p>
+        )}
+        {form.type === 'dataset' && !adminProviders && (
           <div className="dataset-upload">
             <Field label="Upload a JSON dataset to R2">
               <textarea

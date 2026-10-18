@@ -49,6 +49,7 @@ export function useAction<T, V>(fn: (variables: V) => Promise<T>) {
         client.invalidateQueries({ queryKey: ['dashboard'] }),
         client.invalidateQueries({ queryKey: ['capabilities'] }),
         client.invalidateQueries({ queryKey: ['provider-capabilities'] }),
+        client.invalidateQueries({ queryKey: ['admin'] }),
       ]);
     },
   });

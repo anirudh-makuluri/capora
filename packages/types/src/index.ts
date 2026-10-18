@@ -252,8 +252,26 @@ export interface Dashboard {
 }
 export interface Session {
   user: { id: string; name: string; email: string };
+  isAdmin: boolean;
   localDemo: boolean;
   paymentMode: 'demo' | 'sandbox';
+}
+export interface ProviderHostSettings {
+  hosts: string[];
+  source: 'environment' | 'dashboard';
+  revision: number;
+  updatedAt: string | null;
+}
+export type ManagedCapability = Capability & {
+  endpoint: string;
+  httpMethod: 'POST' | 'GET';
+  hasSecret: boolean;
+  removedAt: string | null;
+};
+export interface AdminProvider {
+  id: string;
+  name: string;
+  ownerName: string;
 }
 export interface ApiErrorBody {
   error: { code: string; message: string; correlationId?: string };

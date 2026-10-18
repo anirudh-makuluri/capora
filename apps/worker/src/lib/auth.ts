@@ -3,6 +3,7 @@ import { APIError } from 'better-auth/api';
 import { drizzleAdapter } from '@better-auth/drizzle-adapter';
 import { drizzle, users, authSessions, authAccounts, authVerifications } from '@capora/db';
 import { hash } from './crypto';
+import { isAdminEmail } from './admin';
 import type { Env } from '../env';
 
 // D1 bindings and I/O belong to the current request, not a module-level singleton.
@@ -28,6 +29,10 @@ export function createAuth(env: Env) {
       user: {
         create: {
           before: async (user) => {
+            if (isAdminEmail(env, user.email))
+              throw new APIError('FORBIDDEN', {
+                message: 'This account must be provisioned by the Capora operator.',
+              });
             const name = user.name.trim();
             if (!name || name.length > 80 || user.email.length > 254)
               throw new APIError('BAD_REQUEST', {

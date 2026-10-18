@@ -6,7 +6,7 @@ Provide a clear name and description that explain the access being sold: license
 
 ## HTTPS provider
 
-An operator must first add the exact provider hostname to `PROVIDER_ALLOWED_HOSTS`. Use HTTPS on the standard port with no URL credentials. Redirects and private/literal IP targets are blocked. Enter an optional Bearer credential in the registration form; it is encrypted in D1 and only decrypted by Capora's gateway.
+An operator must first approve the exact provider hostname in the [Admin dashboard](admin.md). Until the first dashboard save, `PROVIDER_ALLOWED_HOSTS` supplies the initial list. Use HTTPS on the standard port with no URL credentials. Redirects and private/literal IP targets are blocked. Enter an optional Bearer credential in the registration form; it is encrypted in D1 and only decrypted by Capora's gateway.
 
 For a POST provider, the HTTP JSON body is the quoted capability input. A GET provider receives scalar input fields as query parameters. The response must be a JSON object matching the output schema. Calls time out after 25 seconds and bodies cannot exceed 256 KiB, so queue mode is appropriate for work within that execution bound that should not hold up an interactive agent. Longer external workflows would need a provider-side start/poll contract in a later version.
 

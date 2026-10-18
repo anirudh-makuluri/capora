@@ -32,6 +32,7 @@ const mf = new Miniflare(
       ENCRYPTION_KEY: secret,
       DEMO_PROVIDER_SECRET: secret,
       PROVIDER_ALLOWED_HOSTS: '',
+      ADMIN_EMAILS: 'demo@capora.local',
     },
   }),
 );
