@@ -415,10 +415,14 @@ test('remaining sections fit below the header on desktop and mobile without clip
   // Expanded copy and unusually short windows grow naturally instead of being cut off.
   await page.locator('.ag-how-details summary').click();
   await expect(page.locator('.ag-how-details')).toHaveAttribute('open', '');
-  await page.getByRole('link', { name: 'See the human guardrails' }).scrollIntoViewIfNeeded();
+  await page
+    .getByRole('link', { name: 'See the human guardrails' })
+    .evaluate((el) => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
   await expect(page.getByRole('link', { name: 'See the human guardrails' })).toBeInViewport({ ratio: 1 });
   await page.setViewportSize({ width: 667, height: 320 });
-  await page.locator('.ag-decree-foot').scrollIntoViewIfNeeded();
+  await page
+    .locator('.ag-decree-foot')
+    .evaluate((el) => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
   await expect(page.locator('.ag-decree-foot')).toBeInViewport({ ratio: 1 });
 });
 
