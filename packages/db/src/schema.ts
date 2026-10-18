@@ -274,11 +274,17 @@ export const reviews = sqliteTable(
     userId: text('user_id')
       .notNull()
       .references(() => users.id),
+    // Nullable for reviews created before verified agent ratings were introduced.
+    agentId: text('agent_id').references(() => agents.id),
+    invocationId: text('invocation_id').references(() => invocations.id),
     rating: integer('rating').notNull(),
     body: text('body'),
     createdAt: text('created_at').notNull(),
   },
-  (t) => [uniqueIndex('reviews_user_capability_idx').on(t.userId, t.capabilityId)],
+  (t) => [
+    uniqueIndex('reviews_invocation_idx').on(t.invocationId),
+    index('reviews_capability_idx').on(t.capabilityId),
+  ],
 );
 export const activity = sqliteTable(
   'activity',

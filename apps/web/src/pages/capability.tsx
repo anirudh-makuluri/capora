@@ -58,8 +58,10 @@ export function CapabilityDetail() {
             </span>
             <span>
               <Star size={18} />
-              <strong>{capability.reputation ? `${capability.reputation.toFixed(1)} / 5` : 'Unrated'}</strong>
-              <small>Provider reputation</small>
+              <strong>{capability.reviewCount ? `${capability.rating.toFixed(1)} / 5` : 'Unrated'}</strong>
+              <small>
+                {capability.reviewCount} verified {capability.reviewCount === 1 ? 'rating' : 'ratings'}
+              </small>
             </span>
             <span>
               <Clock3 size={18} />
@@ -91,6 +93,7 @@ export function CapabilityDetail() {
                     'Request a fixed-price quote, valid for five minutes.',
                     'Purchase under your agent’s spending policy.',
                     `Invoke securely ${capability.async ? 'and poll the asynchronous job' : 'and receive a structured result'}.`,
+                    'Evaluate the outcome and rate the capability from 1 to 5 through rate_capability.',
                   ].map((step, i) => (
                     <div key={step}>
                       <span>{i + 1}</span>

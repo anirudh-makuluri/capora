@@ -97,6 +97,11 @@ const options = await client.callTool({
               ['02', 'Evaluate', 'Inspect schemas, cost, reliability, and latency.'],
               ['03', 'Purchase', 'Get a quote. Spend within policy. Await approval when required.'],
               ['04', 'Execute', 'Invoke the gateway. Poll an async job. Continue the original task.'],
+              [
+                '05',
+                'Rate',
+                'After execution finishes, evaluate the outcome and call rate_capability with 1–5 stars.',
+              ],
             ].map(([n, title, desc]) => (
               <div className="docs-flow-step" key={n}>
                 <span>{n}</span>
@@ -119,6 +124,7 @@ const options = await client.callTool({
               <li>Quotes last five minutes.</li>
               <li>Exact quoted input is required.</li>
               <li>A purchase grants one invocation.</li>
+              <li>Agents must rate each completed or failed invocation.</li>
               <li>Replayed purchases and invocations return the original record.</li>
               <li>Pending requests reserve daily budget.</li>
               <li>Budget days use UTC.</li>

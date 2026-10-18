@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { builtinCapabilities } from '../../apps/worker/src/providers/capabilities/registry';
+import type { Capability, Invocation } from '../../packages/types/src/index';
 
 test.beforeEach(async ({ page }) => {
   const credentials = JSON.parse(await readFile('.local/credentials.json', 'utf8'));
@@ -64,11 +65,33 @@ test('purchased computed tools deliver usable results with approval and queued e
   await page.getByRole('textbox', { name: 'Invocation arguments' }).fill(JSON.stringify({ text: 'abc' }));
   await page.getByRole('button', { name: 'Get a quote' }).click();
   await page.getByRole('button', { name: 'Purchase capability' }).click();
+  const invocationResponse = page.waitForResponse(
+    (response) => response.url().endsWith('/invocations') && response.request().method() === 'POST',
+  );
   await page.getByRole('button', { name: 'Invoke capability' }).click();
+  const invocation = (await (await invocationResponse).json()) as Invocation;
   await expect(page.locator('.result-panel')).toContainText(
     'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad',
   );
   await expect(page.locator('.result-panel')).toContainText('"synthetic": false');
+  expect(invocation.ratingRequest).toMatchObject({ required: true, tool: 'rate_capability' });
+  const before = (await (
+    await page.request.get('/api/capabilities/document_fingerprint')
+  ).json()) as Capability;
+  const rating = await page.request.post(`/api/agents/${invocation.agentId}/ratings`, {
+    data: { invocation_id: invocation.id, rating: 4, body: 'Returned the expected known digest.' },
+  });
+  expect(rating.ok()).toBe(true);
+  await page.reload();
+  const count = before.reviewCount + 1;
+  const average = ((before.rating * before.reviewCount + 4) / count).toFixed(1);
+  await expect(page.locator('.detail-trust')).toContainText(`${average} / 5`);
+  await expect(page.locator('.detail-trust')).toContainText(
+    `${count} verified ${count === 1 ? 'rating' : 'ratings'}`,
+  );
+  await page.goto('/marketplace');
+  const card = page.locator('.capability-card').filter({ hasText: 'Document Fingerprint' });
+  await expect(card).toContainText(`${average} (${count})`);
   await page.goto('/marketplace/code_scan');
   await page
     .getByRole('textbox', { name: 'Invocation arguments' })
@@ -93,6 +116,10 @@ test('desktop and mobile navigation render without overflow', async ({ page }) =
   for (const path of ['/overview', '/agents', '/transactions', '/providers', '/developers', '/']) {
     await page.goto(path);
     await expect(page.locator('h1')).toBeVisible();
+    if (path === '/developers') {
+      await expect(page.locator('.tool-surface')).toContainText('9 stable tools');
+      await expect(page.locator('.docs-flow')).toContainText('rate_capability');
+    }
   }
   await page.screenshot({ path: '.local/screenshots/landing-desktop.png', fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });

@@ -7,7 +7,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { seedCapabilities, outputSchema } from './fixtures/catalog';
 import { catalogStatements, seedCapabilities as registeredMetadata } from '../scripts/seed-data';
-import type { Purchase, Quote, Invocation, Budget, Job } from '../packages/types/src/index';
+import type { Purchase, Quote, Invocation, Budget, Job, Capability } from '../packages/types/src/index';
 import { R2_BUDGET } from '../packages/config/src/index';
 import { hashPassword } from '../apps/worker/src/lib/password';
 
@@ -88,6 +88,10 @@ beforeAll(async () => {
     .run();
   await db.prepare('INSERT INTO spending_policies(agent_id) VALUES (?)').bind('agent_other').run();
   await db
+    .prepare('INSERT INTO agents(id,user_id,name,token_hash,created_at) VALUES (?,?,?,?,?)')
+    .bind('agent_sibling', 'user_test', 'Same owner agent', 'sibling-hash', now)
+    .run();
+  await db
     .prepare(
       'INSERT INTO auth_accounts(id,user_id,account_id,provider_id,password,created_at,updated_at) VALUES (?,?,?,?,?,?,?)',
     )
@@ -148,6 +152,7 @@ beforeAll(async () => {
 beforeEach(async () => {
   const db = await mf.getD1Database('DB');
   for (const table of [
+    'reviews',
     'jobs',
     'invocations',
     'transactions',
@@ -165,6 +170,7 @@ beforeEach(async () => {
     .run();
   await db.prepare("UPDATE agents SET status='active' WHERE id='agent_test'").run();
   await db.prepare('UPDATE capabilities SET enabled=1,version=1,success_count=0,failure_count=0').run();
+  await db.prepare('UPDATE providers SET reputation=0').run();
   await db
     .prepare(
       "UPDATE resource_usage SET usage_day='',writes=0,reads=0,reserved_bytes=0,blocked=0 WHERE resource='r2'",
@@ -344,6 +350,15 @@ describe('Actual Worker, D1, R2, Queues, and MCP integration', () => {
       },
       { timeout: 10_000, interval: 200 },
     );
+    const finished = (await request<Job>(`/agents/agent_test/jobs/${invocation.jobId}`)).data;
+    expect(finished.ratingRequest).toMatchObject({ required: true, invocationId: invocation.id });
+    expect(
+      (await request('/agents/agent_test/ratings', { invocation_id: finished.invocationId, rating: 4 }))
+        .status,
+    ).toBe(200);
+    expect(
+      (await request<Job>(`/agents/agent_test/jobs/${invocation.jobId}`)).data.ratingRequest?.required,
+    ).toBe(false);
   });
   it('rejection releases a reservation without a transaction', async () => {
     const p = (await buy((await quote('securescan_advanced', {})).id)).data;
@@ -441,7 +456,118 @@ describe('Actual Worker, D1, R2, Queues, and MCP integration', () => {
       .data;
     expect(inv.status).toBe('failed');
     expect(inv.error).toContain('PROVIDER_FAILURE');
+    expect(inv.ratingRequest).toMatchObject({ required: true, invocationId: inv.id });
+    const rating = await request('/agents/agent_test/ratings', {
+      invocation_id: inv.id,
+      rating: 1,
+      body: 'Provider failed.',
+    });
+    expect(rating.status).toBe(200);
+    expect(
+      (await request<Invocation>(`/agents/agent_test/invocations/${inv.id}`)).data.ratingRequest?.required,
+    ).toBe(false);
     expect((await request<Purchase>(`/agents/agent_test/purchases/${p.id}`)).data.status).toBe('purchased');
+  });
+  it('records one immutable rating per execution, including concurrent retries and repeated usage', async () => {
+    const input = { text: 'abc' };
+    const execute = async () => {
+      const p = (await buy((await quote('document_fingerprint', input)).id)).data;
+      return (await request<Invocation>('/agents/agent_test/invocations', { purchase_id: p.id, input })).data;
+    };
+    const inv = await execute();
+    expect(inv.ratingRequest).toMatchObject({
+      required: true,
+      tool: 'rate_capability',
+      invocationId: inv.id,
+      capabilityId: inv.capabilityId,
+    });
+    const feedback = { invocation_id: inv.id, rating: 5, body: '  Expected digest and byte count.  ' };
+    const results = await Promise.all(
+      Array.from({ length: 5 }, () => request<{ id: string }>('/agents/agent_test/ratings', feedback)),
+    );
+    expect(results.every((r) => r.status === 200)).toBe(true);
+    expect(new Set(results.map((r) => r.data.id)).size).toBe(1);
+    const db = await mf.getD1Database('DB');
+    expect(await db.prepare('SELECT agent_id,user_id,invocation_id,body FROM reviews').first()).toEqual({
+      agent_id: 'agent_test',
+      user_id: 'user_test',
+      invocation_id: inv.id,
+      body: 'Expected digest and byte count.',
+    });
+    // A historical review is preserved but has no verified execution evidence.
+    await db
+      .prepare('INSERT INTO reviews(id,capability_id,user_id,rating,created_at) VALUES (?,?,?,?,?)')
+      .bind('legacy-review', inv.capabilityId, 'user_test', 1, new Date().toISOString())
+      .run();
+    expect(
+      await db.prepare("SELECT COUNT(*) count FROM activity WHERE kind='capability_rated'").first('count'),
+    ).toBe(1);
+    const conflict = await request('/agents/agent_test/ratings', { ...feedback, rating: 2 });
+    expect(conflict.status).toBe(409);
+    expect(conflict.data).toMatchObject({ error: { code: 'RATING_ALREADY_SUBMITTED' } });
+    const replay = await request<Invocation>('/agents/agent_test/invocations', {
+      purchase_id: inv.purchaseId,
+      input,
+    });
+    expect(replay.data.ratingRequest?.required).toBe(false);
+    const second = await execute();
+    expect(second.ratingRequest?.required).toBe(true);
+    expect(
+      (await request('/agents/agent_test/ratings', { invocation_id: second.id, rating: 3 })).status,
+    ).toBe(200);
+    const detail = (await request<Capability>('/capabilities/document_fingerprint')).data;
+    expect(detail).toMatchObject({ rating: 4, reviewCount: 2, reputation: 4 });
+    const catalog = (await request<Capability[]>('/capabilities?query=fingerprint&min_reputation=4')).data;
+    expect(catalog.find((c) => c.id === inv.capabilityId)).toMatchObject({
+      rating: 4,
+      reviewCount: 2,
+      reputation: 4,
+    });
+    expect((await request<Capability>('/capabilities/code_scan')).data).toMatchObject({
+      rating: 0,
+      reviewCount: 0,
+    });
+  });
+  it('rejects unexecuted purchases, unknown invocations, another agent, and invalid rating inputs', async () => {
+    const input = { text: 'abc' };
+    const p = (await buy((await quote('document_fingerprint', input)).id)).data;
+    for (const invocation_id of ['missing', p.id]) {
+      const response = await request('/agents/agent_test/ratings', { invocation_id, rating: 4 });
+      expect(response.status).toBe(404);
+    }
+    const inv = (await request<Invocation>('/agents/agent_test/invocations', { purchase_id: p.id, input }))
+      .data;
+    const db = await mf.getD1Database('DB');
+    for (const invalid of [0, 6, 1.5, '5', null])
+      expect(
+        (await request('/agents/agent_test/ratings', { invocation_id: inv.id, rating: invalid })).status,
+      ).toBe(400);
+    expect(
+      (
+        await request('/agents/agent_test/ratings', {
+          invocation_id: inv.id,
+          rating: 4,
+          body: 'x'.repeat(2001),
+        })
+      ).status,
+    ).toBe(400);
+    expect((await request('/agents/agent_other/ratings', { invocation_id: inv.id, rating: 4 })).status).toBe(
+      404,
+    );
+    // Even agents belonging to the same owner cannot rate each other's invocations.
+    expect(
+      (await request('/agents/agent_sibling/ratings', { invocation_id: inv.id, rating: 4 })).status,
+    ).toBe(404);
+    for (const status of ['queued', 'running', 'cancelled']) {
+      await db.prepare('UPDATE invocations SET status=? WHERE id=?').bind(status, inv.id).run();
+      const response = await request('/agents/agent_test/ratings', { invocation_id: inv.id, rating: 4 });
+      expect(response.status).toBe(409);
+      expect(response.data).toMatchObject({ error: { code: 'EXECUTION_NOT_FINISHED' } });
+      expect(
+        (await request<Invocation>(`/agents/agent_test/invocations/${inv.id}`)).data.ratingRequest,
+      ).toBeUndefined();
+    }
+    expect(await db.prepare('SELECT COUNT(*) count FROM reviews').first('count')).toBe(0);
   });
   it('stores and serves an owned dataset from R2', async () => {
     const records = Array.from({ length: 2000 }, (_, index) => ({ id: index, region: 'Arizona' }));
@@ -664,7 +790,10 @@ describe('Actual Worker, D1, R2, Queues, and MCP integration', () => {
     });
     try {
       await client.connect(transport);
-      expect((await client.listTools()).tools).toHaveLength(8);
+      const tools = (await client.listTools()).tools;
+      expect(tools).toHaveLength(9);
+      expect(tools.find((tool) => tool.name === 'rate_capability')).toBeDefined();
+      expect(client.getInstructions()).toContain('you must evaluate the outcome and call rate_capability');
       const extract = <T>(result: Awaited<ReturnType<typeof client.callTool>>): T => {
         const content = result.content as { type: string; text?: string }[];
         return JSON.parse(content.find((c) => c.type === 'text')?.text ?? 'null') as T;
@@ -696,10 +825,35 @@ describe('Actual Worker, D1, R2, Queues, and MCP integration', () => {
         }),
       );
       expect(inv.status).toBe('completed');
+      expect(inv.ratingRequest).toMatchObject({ required: true, invocationId: inv.id });
       expect(inv.result).toMatchObject({
         synthetic: false,
         data: { sha256: 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad', bytes: 3 },
       });
+      const rate = await client.callTool({
+        name: 'rate_capability',
+        arguments: { invocation_id: inv.id, rating: 5, body: 'Correct known SHA-256 digest and byte count.' },
+      });
+      expect(rate.isError).not.toBe(true);
+      expect(extract(rate)).toMatchObject({ invocationId: inv.id, rating: 5, ratingRequired: false });
+      const replay = extract<Invocation>(
+        await client.callTool({
+          name: 'invoke_capability',
+          arguments: { purchase_id: p.id, input: { text: 'abc' } },
+        }),
+      );
+      expect(replay.ratingRequest?.required).toBe(false);
+      const invalid = await client.callTool({
+        name: 'rate_capability',
+        arguments: { invocation_id: inv.id, rating: 6 },
+      });
+      expect(invalid.isError).toBe(true);
+      const crossAgent = await client.callTool({
+        name: 'rate_capability',
+        arguments: { invocation_id: 'not-owned', rating: 3 },
+      });
+      expect(crossAgent.isError).toBe(true);
+      expect(extract(crossAgent)).toMatchObject({ error: { code: 'NOT_FOUND' } });
       const budget = extract<Budget>(await client.callTool({ name: 'get_budget', arguments: {} }));
       expect(budget.spentTodayCents).toBe(10);
     } finally {
