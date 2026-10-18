@@ -24,7 +24,7 @@ for (const viewport of [
     await expect(signOut).toHaveText('Sign out');
     const sidebar = page.locator('.sidebar');
     expect(await sidebar.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
-    await page.getByRole('link', { name: 'Documentation', exact: true }).scrollIntoViewIfNeeded();
+    await sidebar.getByRole('link', { name: 'Developers', exact: true }).scrollIntoViewIfNeeded();
     await expect(signOut).toBeInViewport({ ratio: 1 });
     await page.screenshot({ path: `.local/screenshots/sidebar-${viewport.width}x${viewport.height}.png` });
     await signOut.click();
