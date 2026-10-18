@@ -68,9 +68,9 @@ test('public landing uses current catalog metadata, accessible inspection, and e
   await page.goto('/');
   await page.getByRole('link', { name: 'Open workspace', exact: false }).filter({ visible: true }).click();
   await expect(page).toHaveURL(/\/overview$/);
-  // Scoped landing typography cannot leak into the existing workspace.
+  // The approved agora typeface now continues into the authenticated workspace.
   await expect(page.locator('.app-shell')).toBeVisible();
-  expect(await page.locator('.app-shell').evaluate((el) => getComputedStyle(el).fontFamily)).not.toContain(
+  expect(await page.locator('.app-shell').evaluate((el) => getComputedStyle(el).fontFamily)).toContain(
     'Chakra',
   );
 });

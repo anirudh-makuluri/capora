@@ -43,7 +43,7 @@ export function ConnectAgent() {
     <div className="login-page">
       <Link to="/" className="brand">
         <Mark />
-        Capora
+        Capora<span className="brand-period">.</span>
       </Link>
       <section className="login-card connect-card">
         <Badge tone="green">CONNECT YOUR AGENT</Badge>

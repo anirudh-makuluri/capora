@@ -6,7 +6,7 @@ The initial design was delivered in PR #4, and the hero was fitted to the first 
 
 The supplied root `index.html` is preserved, unmodified and untracked. An exact copy is committed at [pixel-agora-reference.html](../../design/pixel-agora-reference.html) so comparisons and browser tests are reproducible. SHA-256 at import: `a93c2bf795b2fc9f8abe4a23e95eedd628a9e74747cf80411dc7dff4a767079d`.
 
-The implementation ports the approved SVG geometry and effective CSS directly into native React components. There is no iframe, replacement artwork, or generated illustration. Chakra Petch is the only font family used for the landing interface, including its dialogs. The existing workspace retains its typography.
+The implementation ports the approved SVG geometry and effective CSS directly into native React components. There is no iframe, replacement artwork, or generated illustration. Chakra Petch is the only font family used for the landing interface, including its dialogs. The subsequent [app-wide theme](../agora-app-theme/README.md) carries the same typeface and visual language into the workspace.
 
 Browser comparisons against the supplied source passed at **1440×1050** and **390×844**:
 
@@ -74,7 +74,7 @@ There are no framework constraints requiring a visual substitute. These delibera
 - **Featured listings:** Names, descriptions, prices, pricing units and execution modes come from the existing public `/api/capabilities` catalog for `gleif_entities`, `brave_search`, and `code_scan`. Full catalog descriptions are longer than the mockup copy; card previews show three lines, and inspection shows the complete description. The registry's actual name is “Company Registry Search.” Loading, failed, disabled or missing listings do not display invented prices or offer an inspection purchase path.
 - **Navigation:** “Explore the agora” opens `/marketplace`; “Open workspace” opens `/overview`; “Connect your agent” opens `/developers`, which already contains the setup prompt and MCP connection guide. Inspection links to the existing `/marketplace/:id` schema and purchase page. These destinations retain the existing sign-in redirect and return path. In-page navigation remains as designed.
 - **Demonstration text:** The hero and capability dialog explicitly state **FOR DEMONSTRATION PURPOSES ONLY**. The spending decree retains the reference's amounts but is labeled an example policy rather than implying that it reflects a signed-in agent's settings.
-- **Accessibility:** Added a skip link, a pause/play control, semantic keyboard-operable ledger buttons, menu Escape handling, and Radix dialog focus trapping, Escape dismissal, focus restoration and background scroll locking. The level-up burst waits for the scroll's transition to finish. The single-font requirement applies to the landing page and its dialogs; existing workspace screens keep their current design.
+- **Accessibility:** Added a skip link, a pause/play control, semantic keyboard-operable ledger buttons, menu Escape handling, and Radix dialog focus trapping, Escape dismissal, focus restoration and background scroll locking. The level-up burst waits for the scroll's transition to finish. Landing styles stay scoped; the later app-wide theme also uses Chakra Petch throughout the workspace.
 
 The landing page only reads public catalog metadata. Authentication, agent authorization, MCP, quote/purchase/invocation handlers, payment configuration, spending policies, security controls, storage, migrations and deployment workflow are unchanged.
 

@@ -16,7 +16,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { Badge, Button, Empty, ErrorNotice, Skeleton } from '../components/ui';
-import { NetworkArt, ProviderIcon } from '../components/brand';
+import { MarketplaceArt, ProviderIcon } from '../components/brand';
 import { useCapabilities, latency } from '../lib/api';
 import { money, type CapabilityType } from '@capora/types';
 
@@ -83,7 +83,7 @@ export function Marketplace() {
           </Link>
         </div>
         <div className="hero-visual">
-          <NetworkArt />
+          <MarketplaceArt />
           <span className="hero-diagram-caption">
             <span /> DISCOVER <i>→</i> PURCHASE <i>→</i> EXECUTE
           </span>

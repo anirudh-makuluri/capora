@@ -7,6 +7,7 @@ import { Skeleton } from './components/ui';
 import { Landing } from './pages/landing';
 import { AuthPage } from './pages/auth';
 import './styles.css';
+import './theme.css';
 
 const client = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 5000, refetchOnWindowFocus: true } },

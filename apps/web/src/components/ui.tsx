@@ -87,11 +87,30 @@ export function Dialog({
   children: React.ReactNode;
   wide?: boolean;
 }) {
+  const returnFocus = React.useRef<HTMLElement | null>(null);
+  React.useEffect(() => {
+    if (open) return;
+    const rememberFocus = (event: FocusEvent) => {
+      const target = event.target;
+      if (target instanceof HTMLElement && target !== document.body && !target.closest('[role="dialog"]'))
+        returnFocus.current = target;
+    };
+    document.addEventListener('focusin', rememberFocus);
+    return () => document.removeEventListener('focusin', rememberFocus);
+  }, [open]);
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay className="dialog-overlay" />
-        <DialogPrimitive.Content className={cn('dialog', wide && 'dialog-wide')}>
+        <DialogPrimitive.Content
+          className={cn('dialog', wide && 'dialog-wide')}
+          onCloseAutoFocus={(event) => {
+            if (returnFocus.current?.isConnected) {
+              event.preventDefault();
+              returnFocus.current.focus();
+            }
+          }}
+        >
           <div className="dialog-head">
             <div>
               <DialogPrimitive.Title>{title}</DialogPrimitive.Title>
@@ -132,7 +151,7 @@ export function ErrorNotice({ error }: { error: unknown }) {
   ) : null;
 }
 export function Skeleton({ className }: { className?: string }) {
-  return <div className={cn('skeleton', className)} aria-label="Loading" />;
+  return <div className={cn('skeleton', className)} role="status" aria-label="Loading" />;
 }
 export function Field({
   label,
