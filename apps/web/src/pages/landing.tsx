@@ -2,8 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AgoraStory, tradeSteps, useReducedMotion } from '../components/agora-story';
 import { FeaturedStalls } from '../components/agora-stalls';
+import { AgoraExplanation } from '../components/agora-explanation';
 import './landing.css';
 import './landing-hero.css';
+import './landing-sections.css';
 
 export function Landing() {
   const reducedMotion = useReducedMotion();
@@ -202,19 +204,21 @@ export function Landing() {
             <div className="ag-how-copy">
               <span className="ag-eyebrow">ONE CONNECTION. NEW POWERS.</span>
               <h2>A little more than a prompt can provide.</h2>
-              <p>
-                Your agent is intelligent. But intelligence alone cannot conjure private credentials,
-                source-backed data, or specialized tools it doesn't already possess.
-              </p>
-              <div className="ag-stroke"></div>
-              <div className="ag-how-note">MCP-NATIVE → POLICY-CHECKED → AUDITABLE</div>
-              <p>
-                The buyer stays in its own workflow. Capora brokers the capability, secures the access, and
-                records the trade.
-              </p>
-              <a className="ag-btn ag-btn-soft" href="#guard">
-                See the human guardrails →
-              </a>
+              <AgoraExplanation>
+                <p>
+                  Your agent is intelligent. But intelligence alone cannot conjure private credentials,
+                  source-backed data, or specialized tools it doesn't already possess.
+                </p>
+                <div className="ag-stroke"></div>
+                <div className="ag-how-note">MCP-NATIVE → POLICY-CHECKED → AUDITABLE</div>
+                <p>
+                  The buyer stays in its own workflow. Capora brokers the capability, secures the access, and
+                  records the trade.
+                </p>
+                <a className="ag-btn ag-btn-soft" href="#guard">
+                  See the human guardrails →
+                </a>
+              </AgoraExplanation>
             </div>
           </div>
         </section>

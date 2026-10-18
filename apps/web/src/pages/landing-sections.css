@@ -1,0 +1,403 @@
+/* Viewport-aware sections. Keep the approved hero and its artwork untouched. */
+.agora-landing {
+  --ag-footer-height: 92px;
+}
+.agora-landing .ag-section {
+  min-height: calc(100svh - var(--ag-header-height));
+  padding: clamp(20px, 4svh, 48px) 0;
+  display: grid;
+  align-content: center;
+  scroll-margin-top: var(--ag-header-height);
+}
+.agora-landing .ag-section h2 {
+  font-size: clamp(30px, min(3.4vw, 6svh), 48px);
+  line-height: 1.05;
+  margin-top: 10px;
+}
+.agora-landing .ag-section .ag-eyebrow {
+  font-size: 12px;
+}
+.agora-landing .ag-section-head {
+  gap: 24px;
+  margin-bottom: clamp(16px, 3svh, 28px);
+}
+.agora-landing .ag-section-head p {
+  font-size: clamp(13px, 2svh, 16px);
+  line-height: 1.5;
+  margin-bottom: 0;
+}
+.agora-landing .ag-stalls {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+.agora-landing .ag-stall {
+  min-width: 0;
+}
+.agora-landing .ag-stall-art {
+  height: clamp(84px, 16svh, 140px);
+}
+.agora-landing .ag-artifact {
+  width: 64px;
+  height: 64px;
+  font-size: 42px;
+}
+.agora-landing .ag-stall-main {
+  padding: clamp(12px, 2svh, 20px);
+}
+.agora-landing .ag-stall-kicker {
+  font-size: 10px;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.agora-landing .ag-stall-kicker span {
+  padding: 4px 6px;
+}
+.agora-landing .ag-stall h3 {
+  font-size: clamp(20px, 2.8svh, 26px);
+  margin-bottom: 10px;
+}
+.agora-landing .ag-stall p {
+  font-size: clamp(12px, 1.8svh, 15px);
+  line-height: 1.45;
+  margin-bottom: 14px;
+}
+.agora-landing .ag-stall-bottom {
+  gap: 8px;
+  padding-top: 12px;
+}
+.agora-landing .ag-stall-price {
+  font-size: clamp(20px, 3svh, 24px);
+}
+.agora-landing .ag-stall-price small {
+  font-size: 10px;
+}
+.agora-landing .ag-stall-bottom button {
+  min-height: 44px;
+  font-size: 13px;
+  padding: 8px;
+}
+.agora-landing .ag-stall-navigation {
+  display: none;
+}
+.agora-landing .ag-how-grid,
+.agora-landing .ag-guard-grid {
+  gap: clamp(24px, 4vw, 60px);
+  min-width: 0;
+}
+.agora-landing .ag-ledger {
+  padding: 16px 20px;
+}
+.agora-landing .ag-ledger-label {
+  font-size: 11px;
+  padding: 0 0 12px;
+}
+.agora-landing .ag-ledger-step {
+  min-height: 44px;
+  padding: 10px 0;
+  gap: 12px;
+}
+.agora-landing .ag-ledger-step strong {
+  font-size: 20px;
+}
+.agora-landing .ag-ledger-step p {
+  font-size: 12px;
+  line-height: 1.4;
+}
+.agora-landing .ag-ledger-end {
+  font-size: 11px;
+  padding: 10px;
+  margin-top: 14px;
+}
+.agora-landing .ag-how-copy p,
+.agora-landing .ag-guard p {
+  font-size: clamp(13px, 2svh, 16px);
+  line-height: 1.5;
+  margin: 16px 0;
+}
+.agora-landing .ag-how-details summary {
+  display: none;
+}
+.agora-landing .ag-stroke {
+  margin: 18px 0;
+}
+.agora-landing .ag-how-note {
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+.agora-landing .ag-how-copy .ag-btn,
+.agora-landing .ag-end .ag-btn {
+  min-height: 44px;
+  font-size: 14px;
+  padding: 12px 16px;
+}
+.agora-landing .ag-guard-points {
+  font-size: 13px;
+  gap: 12px;
+  margin-top: 20px;
+}
+.agora-landing .ag-decree {
+  padding: clamp(16px, 3svh, 28px);
+}
+.agora-landing .ag-decree-top {
+  font-size: clamp(16px, 2.5svh, 22px);
+  padding-bottom: 12px;
+}
+.agora-landing .ag-decree-row {
+  padding: clamp(12px, 2svh, 18px) 0;
+}
+.agora-landing .ag-decree-row strong {
+  font-size: clamp(22px, 3svh, 27px);
+}
+.agora-landing .ag-decree-foot {
+  font-size: 10px;
+  margin-top: 16px;
+}
+.agora-landing .ag-end {
+  min-height: calc(100svh - var(--ag-header-height) - var(--ag-footer-height));
+  padding: 28px 0;
+  display: grid;
+  align-content: center;
+  scroll-margin-top: var(--ag-header-height);
+}
+.agora-landing .ag-end h2 {
+  font-size: clamp(34px, min(5vw, 8svh), 64px);
+  margin: 12px auto 18px;
+}
+.agora-landing .ag-end p {
+  font-size: 15px;
+  line-height: 1.5;
+  margin-bottom: 20px;
+}
+.agora-landing .ag-end small {
+  margin-top: 18px;
+}
+.agora-landing footer {
+  min-height: var(--ag-footer-height);
+  padding: 18px 0;
+  display: grid;
+  align-content: center;
+}
+.agora-landing .ag-foot {
+  gap: 12px;
+}
+.agora-landing .ag-foot p {
+  margin: 0;
+}
+
+@media (max-width: 780px) {
+  .agora-landing {
+    --ag-footer-height: 136px;
+  }
+  .agora-landing .ag-section {
+    padding: clamp(16px, 3svh, 28px) 0;
+  }
+  .agora-landing .ag-section h2 {
+    font-size: clamp(26px, 4.5svh, 38px);
+  }
+  .agora-landing .ag-section .ag-eyebrow {
+    font-size: 11px;
+  }
+  .agora-landing .ag-section-head {
+    margin-bottom: 14px;
+  }
+  .agora-landing .ag-section-head p {
+    margin-top: 12px;
+    font-size: 14px;
+    line-height: 1.4;
+  }
+  .agora-landing .ag-stalls {
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: calc(100% - 18px);
+    gap: 14px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: thin;
+    padding: 0 8px 12px 0;
+    overscroll-behavior-x: contain;
+  }
+  .agora-landing .ag-stall {
+    scroll-snap-align: start;
+  }
+  .agora-landing .ag-stall-art {
+    height: clamp(72px, 12svh, 105px);
+  }
+  .agora-landing .ag-stall-main {
+    padding: 14px;
+  }
+  .agora-landing .ag-stall h3 {
+    font-size: 22px;
+  }
+  .agora-landing .ag-stall p {
+    font-size: 13px;
+  }
+  .agora-landing .ag-stall-navigation {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 12px;
+    margin-top: 4px;
+  }
+  .agora-landing .ag-stall-navigation button {
+    width: 44px;
+    height: 44px;
+    border: 2px solid var(--ink);
+    background: var(--parchment);
+    font: 700 20px var(--pixel);
+  }
+  .agora-landing .ag-stall-navigation button:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+  .agora-landing .ag-how-grid,
+  .agora-landing .ag-guard-grid {
+    gap: 22px;
+  }
+  .agora-landing .ag-how-details {
+    margin-top: 12px;
+  }
+  .agora-landing .ag-how-details summary {
+    display: list-item;
+    cursor: pointer;
+    min-height: 44px;
+    padding: 12px 0;
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .agora-landing .ag-ledger {
+    padding: 14px;
+  }
+  .agora-landing .ag-ledger-step strong {
+    font-size: 18px;
+  }
+  .agora-landing .ag-ledger-step:not(.ag-active) p {
+    display: none;
+  }
+  .agora-landing .ag-ledger-end {
+    font-size: 10px;
+    margin-top: 10px;
+    padding: 9px;
+  }
+  .agora-landing .ag-guard-points {
+    font-size: 12px;
+    gap: 8px;
+    margin-top: 16px;
+  }
+  .agora-landing .ag-decree {
+    padding: 16px;
+  }
+  .agora-landing .ag-decree-top {
+    font-size: 17px;
+    padding-bottom: 10px;
+  }
+  .agora-landing .ag-decree-row {
+    padding: 12px 0;
+  }
+  .agora-landing .ag-decree-row span {
+    font-size: 11px;
+  }
+  .agora-landing .ag-decree-row strong {
+    font-size: 22px;
+  }
+  .agora-landing .ag-decree-foot {
+    font-size: 9px;
+    margin-top: 12px;
+  }
+  .agora-landing .ag-end {
+    padding: 24px 0;
+  }
+  .agora-landing .ag-end .ag-eyebrow {
+    font-size: 11px;
+  }
+  .agora-landing .ag-end h2 {
+    font-size: clamp(30px, 5svh, 44px);
+  }
+  .agora-landing .ag-end p {
+    font-size: 13px;
+  }
+  .agora-landing .ag-end-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .agora-landing .ag-end .ag-btn {
+    font-size: 12px;
+    padding: 10px 6px;
+  }
+  .agora-landing .ag-end small {
+    font-size: 10px;
+    margin-top: 14px;
+  }
+  .agora-landing .ag-foot {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 10px;
+  }
+  .agora-landing .ag-foot p {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    font-size: 12px;
+  }
+  .agora-landing .ag-foot > a:last-child {
+    font-size: 11px;
+  }
+}
+@media (max-width: 780px) and (max-height: 700px) {
+  .agora-landing .ag-section {
+    padding: 12px 0;
+  }
+  .agora-landing .ag-section h2 {
+    font-size: 26px;
+  }
+  .agora-landing .ag-section-head p {
+    font-size: 12px;
+    margin-top: 10px;
+  }
+  .agora-landing .ag-stall-art {
+    height: 64px;
+  }
+  .agora-landing .ag-artifact {
+    width: 48px;
+    height: 48px;
+    font-size: 32px;
+  }
+  .agora-landing .ag-stall-main {
+    padding: 12px;
+  }
+  .agora-landing .ag-stall h3 {
+    font-size: 20px;
+  }
+  .agora-landing .ag-stall p {
+    font-size: 12px;
+  }
+  .agora-landing .ag-how-grid,
+  .agora-landing .ag-guard-grid {
+    gap: 16px;
+  }
+  .agora-landing .ag-guard p {
+    font-size: 13px;
+    line-height: 1.4;
+    margin: 12px 0;
+  }
+  .agora-landing .ag-decree {
+    padding: 14px;
+  }
+  .agora-landing .ag-how-grid {
+    gap: 10px;
+  }
+  .agora-landing .ag-ledger {
+    padding: 12px;
+  }
+}
+@media (min-width: 781px) and (max-width: 1000px) {
+  .agora-landing .ag-ledger {
+    padding: 14px;
+  }
+  .agora-landing .ag-ledger-step {
+    padding: 8px 0;
+  }
+  .agora-landing .ag-ledger-end {
+    margin-top: 10px;
+  }
+}
