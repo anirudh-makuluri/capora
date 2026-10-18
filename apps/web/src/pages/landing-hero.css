@@ -230,6 +230,12 @@
   }
 }
 @media (max-width: 780px) and (max-height: 700px) {
+  .agora-landing {
+    --ag-header-height: 56px;
+  }
+  .agora-landing .ag-top {
+    min-height: 53px;
+  }
   .agora-landing .ag-hero {
     padding: 7px 0;
   }
@@ -253,5 +259,16 @@
   }
   .agora-landing .ag-tiny-note {
     margin-top: 4px;
+  }
+}
+@media (max-width: 780px) and (max-height: 620px) {
+  .agora-landing .ag-hero {
+    padding: 5px 0;
+  }
+  .agora-landing .ag-hero-grid {
+    gap: 6px;
+  }
+  .agora-landing .ag-hero h1 {
+    font-size: 26px;
   }
 }
