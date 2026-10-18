@@ -26,7 +26,7 @@ Comparison uses the supplied HTML locally. The hosted design URL was not accessi
 
 ## Five-stage exchange
 
-The story is an explicitly labeled illustration. It never requests a quote, buys, invokes a capability, or fabricates an API result. The ledger is an explanation of that same example transaction, not an account transaction history.
+The story is an explicitly labeled illustration. It never requests a quote, buys, invokes a capability, or fabricates an API result. The ledger is an explanation of that same example transaction, not an account transaction history. An explicit reduced-motion offer pose preserves the settled scroll position when the existing workspace's global accessibility rule disables all keyframes.
 
 | Stage          | Behavior verified in the rendered SVG                              | Desktop                                       | Mobile                           |
 | -------------- | ------------------------------------------------------------------ | --------------------------------------------- | -------------------------------- |

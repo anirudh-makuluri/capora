@@ -1318,6 +1318,11 @@ html:has(.agora-landing) {
   }
 }
 @media (prefers-reduced-motion: reduce) {
+  /* The workspace disables animation globally. Keep the offered scroll at the
+     settled merchant-to-buyer pose even when its keyframes cannot run. */
+  .agora-landing .ag-game.ag-phase-1 .ag-crystal {
+    transform: translate(556px, 334px) scale(1);
+  }
   .agora-landing *,
   .agora-landing *::before,
   .agora-landing *::after {

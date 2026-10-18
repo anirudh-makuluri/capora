@@ -245,6 +245,9 @@ test('mobile keyboard navigation, all stages, reduced motion, and accessible dia
     await page.keyboard.press('Enter');
     await expect(control).toHaveAttribute('aria-current', 'step');
     await expect(page.locator('#game')).toHaveClass(new RegExp(`ag-phase-${i}`));
+    await expect
+      .poll(() => transformX(page.locator('.ag-crystal')))
+      .toBeCloseTo([665, 556, 542, 503, 448][i], 0);
     await snapshot(page, `mobile-stage-${i + 1}`, true);
   }
   await expect(page.getByRole('button', { name: 'Pause animation' })).not.toBeVisible();
