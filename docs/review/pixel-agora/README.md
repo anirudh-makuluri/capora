@@ -1,6 +1,6 @@
 # Pixel agora landing page review
 
-The initial design was delivered in PR #4. This revision adjusts the hero after the request to show the complete introduction and horizontal ticker in the first viewport. The existing workflow deploys only a successful `main` push/manual run with the deployment variable enabled; feature branches and PRs run verification only.
+The initial design was delivered in PR #4, and the hero was fitted to the first viewport in PR #5. This revision fits the remaining sections beneath the sticky header while leaving that approved hero unchanged. The existing workflow deploys only a successful `main` push/manual run with the deployment variable enabled; feature branches and PRs run verification only.
 
 ## Design source and fidelity
 
@@ -11,7 +11,7 @@ The implementation ports the approved SVG geometry and effective CSS directly in
 Browser comparisons against the supplied source passed at **1440×1050** and **390×844**:
 
 - Hero palette, font family, weight, backgrounds, border colors and shadows retained from the source. Its sizing and spacing now intentionally adapt to viewport height.
-- Matching computed fonts, sizes, weights, line heights, spacing, colors, backgrounds, visible borders, shadows and padding in the section headings, ledger, narrative and spending decree.
+- Matching computed font families, weights, colors, backgrounds, visible borders and shadows in the section headings, ledger, narrative and spending decree. Section sizes and spacing intentionally adapt to the viewport.
 - Every original SVG element and non-class attribute preserved in the JSX port. Class names are prefixed to isolate styles.
 - No horizontal page overflow at either width.
 
@@ -38,6 +38,19 @@ The hero uses viewport-height-aware spacing and type sizes, keeps two columns on
 | Mobile, 390×844         | [View](first-view-390x844.png)  |
 | Short mobile, 390×600   | [View](first-view-390x600.png)  |
 
+## Remaining section viewport fit
+
+The marketplace, trade explanation, human controls and closing section fit beneath the sticky header at 1440×900, 1366×768, 1280×600, 1024×768, 820×600, 768×1024, 390×844, 375×667, 390×600 and 360×600. Closing actions and the footer fit together. Section anchors account for the actual header height.
+
+Desktop keeps three stalls side by side. Mobile uses native horizontal scrolling and scroll snap, with previous/next buttons, an announced counter, and left/right keyboard controls. Each card retains the real catalog metadata and complete read-only inspection dialog. On mobile the longer trade explanation is a native disclosure, and the currently selected stage shows its description while all five stage buttons remain visible. Opening the explanation or using a very short/zoomed window allows natural page scrolling; no fixed-height containers clip content.
+
+| Section            | Desktop 1280×600                    | Mobile 390×600                     |
+| ------------------ | ----------------------------------- | ---------------------------------- |
+| Marketplace        | [View](section-stalls-1280x600.png) | [View](section-stalls-390x600.png) |
+| How trade works    | [View](section-how-1280x600.png)    | [View](section-how-390x600.png)    |
+| For humans         | [View](section-guard-1280x600.png)  | [View](section-guard-390x600.png)  |
+| Closing and footer | [View](section-ag-end-1280x600.png) | [View](section-ag-end-390x600.png) |
+
 ## Five-stage exchange
 
 The story is an explicitly labeled illustration. It never requests a quote, buys, invokes a capability, or fabricates an API result. The ledger is an explanation of that same example transaction, not an account transaction history. An explicit reduced-motion offer pose preserves the settled scroll position when the existing workspace's global accessibility rule disables all keyframes.
@@ -57,6 +70,7 @@ Coordinates are in the original 760×500 SVG viewBox. Screenshots show settled s
 There are no framework constraints requiring a visual substitute. These deliberate production integrations are the remaining differences:
 
 - **Hero sizing:** Updated from fixed padding/minimum scene heights to viewport-aware sizing at the user's request. Hero metrics intentionally differ from the original HTML. Captions sit below the artwork; mobile scene tags and spacing become more compact on shorter screens.
+- **Section sizing:** Responsive section spacing, typography and card artwork sizing replace the original fixed spacing. Mobile stalls scroll horizontally, and the trade explanation expands on demand. The approved hero CSS, markup and SVG are unchanged in this revision.
 - **Featured listings:** Names, descriptions, prices, pricing units and execution modes come from the existing public `/api/capabilities` catalog for `gleif_entities`, `brave_search`, and `code_scan`. Full catalog descriptions are longer than the mockup copy; card previews show three lines, and inspection shows the complete description. The registry's actual name is “Company Registry Search.” Loading, failed, disabled or missing listings do not display invented prices or offer an inspection purchase path.
 - **Navigation:** “Explore the agora” opens `/marketplace`; “Open workspace” opens `/overview`; “Connect your agent” opens `/developers`, which already contains the setup prompt and MCP connection guide. Inspection links to the existing `/marketplace/:id` schema and purchase page. These destinations retain the existing sign-in redirect and return path. In-page navigation remains as designed.
 - **Demonstration text:** The hero and capability dialog explicitly state **FOR DEMONSTRATION PURPOSES ONLY**. The spending decree retains the reference's amounts but is labeled an example policy rather than implying that it reflects a signed-in agent's settings.
@@ -74,7 +88,7 @@ Verified locally on October 17, 2026 (America/Phoenix):
 | `pnpm lint`                 | Passed                                                       |
 | `pnpm build`                | Passed: Vite production assets and Wrangler **dry run only** |
 | `pnpm exec vitest run`      | 185 tests passed across 13 files                             |
-| `pnpm exec playwright test` | 16 browser tests passed, including 7 landing tests           |
+| `pnpm exec playwright test` | 18 browser tests passed, including 9 landing tests           |
 | `git diff --check`          | Passed                                                       |
 
 The full browser suite includes signup/sign-in, account isolation, short/mobile navigation, copied setup prompt → browser authorization → real MCP tool discovery, marketplace filtering and details, and the **disposable local payment simulator** purchase/approval/queued-execution flow. It uses isolated storage and credentials. These local results do not claim a new hosted PayPal transaction; production deployment and live verification are tracked separately by the release workflow.
@@ -92,15 +106,17 @@ pnpm exec playwright test tests/browser/landing.spec.ts
 
 ## Changed files
 
-| File                                       | Purpose                                                                         |
-| ------------------------------------------ | ------------------------------------------------------------------------------- |
-| `apps/web/src/pages/landing.tsx`           | Native page structure, navigation and story state                               |
-| `apps/web/src/pages/landing-hero.css`      | Viewport-aware hero layout, artwork frame and ticker sizing                     |
-| `apps/web/src/pages/landing.css`           | Scoped reference styles and accessibility/integration additions                 |
-| `apps/web/src/components/agora-art.tsx`    | Original SVG artwork as JSX                                                     |
-| `apps/web/src/components/agora-story.tsx`  | Five stages, captions, controls and reduced-motion preference                   |
-| `apps/web/src/components/agora-stalls.tsx` | Catalog-backed stalls and accessible read-only inspection dialogs               |
-| `apps/web/index.html`                      | Chakra Petch loading and matching theme color                                   |
-| `tests/browser/landing.spec.ts`            | Visual-source comparison, animation, routes, catalog failures and accessibility |
-| `docs/design/pixel-agora-reference.html`   | Unmodified supplied source                                                      |
-| `docs/review/pixel-agora/`                 | Review notes and desktop/mobile evidence                                        |
+| File                                            | Purpose                                                                         |
+| ----------------------------------------------- | ------------------------------------------------------------------------------- |
+| `apps/web/src/pages/landing.tsx`                | Native page structure, navigation and story state                               |
+| `apps/web/src/pages/landing-sections.css`       | Viewport-aware marketplace, trade, guardrails, closing and footer               |
+| `apps/web/src/components/agora-explanation.tsx` | Native responsive trade explanation disclosure                                  |
+| `apps/web/src/pages/landing-hero.css`           | Viewport-aware hero layout, artwork frame and ticker sizing                     |
+| `apps/web/src/pages/landing.css`                | Scoped reference styles and accessibility/integration additions                 |
+| `apps/web/src/components/agora-art.tsx`         | Original SVG artwork as JSX                                                     |
+| `apps/web/src/components/agora-story.tsx`       | Five stages, captions, controls and reduced-motion preference                   |
+| `apps/web/src/components/agora-stalls.tsx`      | Catalog-backed stalls and accessible read-only inspection dialogs               |
+| `apps/web/index.html`                           | Chakra Petch loading and matching theme color                                   |
+| `tests/browser/landing.spec.ts`                 | Visual-source comparison, animation, routes, catalog failures and accessibility |
+| `docs/design/pixel-agora-reference.html`        | Unmodified supplied source                                                      |
+| `docs/review/pixel-agora/`                      | Review notes and desktop/mobile evidence                                        |
