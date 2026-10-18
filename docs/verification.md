@@ -1,5 +1,22 @@
 # Verification record
 
+## Riot recent matches — 2026-10-17
+
+- Confirmed `RIOT_API_KEY` is populated in root `.env` and Worker `.dev.vars` without showing either value. Added it to the server-only setup allowlist and regenerated Worker binding types. README and `.env.example` capability details remain unchanged.
+- Registered `riot_recent_matches` in the shared marketplace/MCP catalog. Inputs are Riot game name, tag line, regional route and 1–10 games (default five). Outputs contain only match ID, start time, duration, queue, mode, champion, win/loss and K/D/A for that player. No timelines or other participants are returned.
+- An isolated local Worker with the official MCP client completed discovery, quote, a 10-cent simulated purchase, real Riot Account-v1/Match-v5 retrieval of two recent games, persisted result retrieval, idempotent replay and budget checks. The initial example Riot ID returned 404; the verified sample is `Hide on bush#KR1` on the Asia route. No key values were logged and no PayPal payment was made.
+- Typecheck, lint, production build, Worker dry-run, all 183 unit/integration tests and all three marketplace/product Chromium tests passed. Contract tests cover empty/fewer games, request bounds, player matching, invalid inputs, missing credentials, authentication errors and rate-limit failure without fabricated partial results. The local catalog contains twelve registered capabilities. This is local verification; no remote deployment or hosted payment flow was performed.
+
+## Authenticated capability additions — 2026-10-17
+
+- Confirmed populated root `.env` settings for Brave, Context.dev, Azure Maps and SD-Artifacts without displaying values. Local setup now copies only the five named provider settings into ignored Worker `.dev.vars`, preserving unrelated session/payment configuration. Generated binding types contain names and string types only. Checked changed source files and the frontend build for actual provider values; none were present.
+- Added Brave Web Search, Context.dev Page Extraction, Azure Maps Geocoding and queued SD-Artifacts Repository Analysis through the shared registry. Local catalog sync contains eleven listings and preserves accounts, credentials and usage.
+- Brave, Context.dev and Azure Maps returned real upstream results both directly and through an isolated workerd/D1/R2 workspace with the official MCP client. Discovery, schema inspection, immutable quotes, simulated purchases, persisted results, replay without duplicate execution and exact budget accounting passed. The three purchases totaled 20 simulated cents. No PayPal payment or hosted Capora deployment was made.
+- SD's configured base URL and Bearer token initially passed authenticated `/healthz`; Supabase and Railpack reported configured, and live OpenAPI matched the expected analysis contract. A subsequent blocking analysis returned HTTP 502; the adapter now uses `/analyze/stream`, matching Smart Deploy. That call and later health checks returned HTTP 503. SD live analysis is **not verified**; this is an upstream availability blocker, not evidence that another Capora credential is required. The adapter's stream parsing, sanitization, timeout and status handling passed mocked contract tests.
+- Typecheck, lint, production frontend build, Worker deployment dry-run, all 164 unit/integration tests and all nine Chromium browser tests passed. Browser coverage includes all four new detail pages and schemas, catalog counts, existing purchase/approval flows, authentication and responsive navigation. The initial browser run used an older generated seven-listing seed; regenerating the seed from the registry resolved the fixture mismatch.
+
+The remaining sections record earlier checks at their stated dates.
+
 Verified locally on Windows with the bundled Node runtime on October 3, 2026.
 
 | Check                   | Result                                                                                                                                                                             |

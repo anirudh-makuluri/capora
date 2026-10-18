@@ -10,6 +10,10 @@ import {
   FileCheck2,
   Network,
   Cloud,
+  Search,
+  FileText,
+  PackageSearch,
+  Gamepad2,
 } from 'lucide-react';
 import type { Capability } from '@capora/types';
 export function Mark({ size = 32 }: { size?: number }) {
@@ -37,6 +41,11 @@ const icons = [
   Network,
   CircuitBoard,
   Cloud,
+  Search,
+  FileText,
+  MapPin,
+  PackageSearch,
+  Gamepad2,
 ];
 export function ProviderIcon({
   capability,
@@ -57,6 +66,11 @@ export function ProviderIcon({
     'supplychain_radar',
     'patentlens',
     'aws_lambda_estimate',
+    'brave_search',
+    'context_scrape',
+    'azure_maps_geocode',
+    'sd_repo_analysis',
+    'riot_recent_matches',
   ];
   const idx = ids.indexOf(capability.id);
   const Icon = icons[idx >= 0 ? idx : capability.type === 'agent' ? 3 : 1];

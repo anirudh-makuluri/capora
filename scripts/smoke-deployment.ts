@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { readDeploymentConfig, validateDeploymentConfig } from './deployment-config';
+import { builtinCapabilities } from '../apps/worker/src/providers/capabilities/registry';
 
 const base = validateDeploymentConfig(await readDeploymentConfig());
 
@@ -19,11 +20,22 @@ async function checkDeployment() {
   assert.equal(status.paymentMode, 'sandbox');
   const catalog = await get('/api/capabilities');
   assert.equal(catalog.status, 200, 'D1 marketplace query must succeed.');
-  const capabilities = await catalog.json();
+  const capabilities: unknown = await catalog.json();
   assert.ok(
     Array.isArray(capabilities) && capabilities.length > 0,
     'Seed the remote marketplace before deployment.',
   );
+  const entries: unknown[] = capabilities;
+  for (const expected of builtinCapabilities) {
+    const deployed = entries.find(
+      (item): item is Record<string, unknown> =>
+        item !== null && typeof item === 'object' && 'id' in item && item.id === expected.id,
+    );
+    assert.ok(deployed, `Registered capability ${expected.id} is missing from the deployed catalog.`);
+    assert.equal(deployed.name, expected.name, `Catalog metadata is stale for ${expected.id}.`);
+    assert.equal(deployed.priceCents, expected.priceCents, `Catalog price is stale for ${expected.id}.`);
+    assert.deepEqual(deployed.inputSchema, expected.schema, `Input schema is stale for ${expected.id}.`);
+  }
   for (const path of ['/api/dashboard', '/api/auth/session', '/api/storage/usage', '/mcp']) {
     const response = await get(path);
     assert.equal(response.status, 401, `${path} must require authentication.`);

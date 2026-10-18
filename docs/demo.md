@@ -2,7 +2,7 @@
 
 Run `pnpm setup:local`, then `pnpm dev`. Sign in with the existing local owner credential. Local payments are simulated; hosted payments remain PayPal Sandbox.
 
-1. Open Marketplace. The seven listings describe actual sources and tools, schemas, prices and limits. Open Company Registry Search and inspect its input/output schemas. Its $0.20 price covers live public-data retrieval and normalization.
+1. Open Marketplace. The registered listings describe actual sources and tools, schemas, prices and limits. Open Company Registry Search and inspect its input/output schemas. Its $0.20 price covers live public-data retrieval and normalization. The authenticated API listings additionally demonstrate access without buyer-managed upstream keys; see [their setup and limits](real-capabilities.md#authenticated-apis-and-hosted-analysis).
 2. Open Playground and click **Run the research flow**. The scripted client discovers the registry capability, quotes `{"company":"Microsoft","limit":5}`, purchases under the default $0.50 automatic threshold and invokes the live GLEIF adapter.
 3. Inspect the returned entity records. Results include actual legal names and LEIs, registration status, source links and retrieval time. Search matches require further identity resolution and do not imply private employment knowledge. No hardcoded research conclusion is displayed.
 4. Click **Request code pattern scan**. Its $3.00 price requires human approval under the default policy. Approve in the playground or Approvals. The queued tool scans the supplied code and returns line-level findings. Explain its three-rule scope and limitations.

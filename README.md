@@ -2,6 +2,8 @@
 
 **The marketplace for machine capabilities.**
 
+**All capabilities on Capora are for demonstration purposes only.** Capora is a hackathon prototype. Purchases use simulated or PayPal Sandbox payments and do not represent real commercial sales.
+
 Capora lets an AI agent acquire access it does not already have: proprietary datasets, privileged APIs, and specialized tools. The agent connects to one MCP server, inspects schemas and economic tradeoffs, gets a quote, purchases under a human-controlled spending policy, and invokes a secure execution gateway.
 
 A collection of generic LLM personas is not the product. Changing a prompt cannot reproduce licensed data, company permissions, private infrastructure, or exclusive tools. Capora brokers access to those capabilities.
@@ -21,7 +23,7 @@ pnpm dev
 - Playground: [http://localhost:5173/demo](http://localhost:5173/demo)
 - Worker / MCP: `http://127.0.0.1:8787/mcp`
 
-`setup:local` generates random credentials in ignored `.local/credentials.json`, writes ignored `apps/worker/.dev.vars`, migrates local D1, and seeds seven real capabilities and the Acquisition Research Agent. It preserves existing configuration and seed records. Local storage persists across restarts in `apps/worker/.wrangler/state`.
+`setup:local` generates random credentials in ignored `.local/credentials.json`, writes ignored `apps/worker/.dev.vars`, migrates local D1, and seeds the capability catalog and the Acquisition Research Agent. It preserves unrelated local configuration and existing seed records. Local storage persists across restarts in `apps/worker/.wrangler/state`.
 
 The local dashboard uses a loopback-only demo identity. **Local payments are simulated**, labeled in the UI, and have `DEMO-` identifiers. They are not PayPal transactions. Deployment defaults disable the local identity and simulator and require PayPal Sandbox. No live PayPal payment mode is implemented.
 
@@ -29,7 +31,7 @@ The local dashboard uses a loopback-only demo identity. **Local payments are sim
 
 | Area             | Working behavior                                                                                                                                                       |
 | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Marketplace      | Seven live-data and computed capabilities; keyword search; type, category, price, reliability, reputation, and latency filters; sorting; schema detail pages           |
+| Marketplace      | Demonstration capability catalog; keyword search; type, category, price, reliability, reputation, and latency filters; sorting; schema detail pages                    |
 | Agent management | Creation, rename, hashed tokens, token regeneration/revocation, spending policies, purchase/invocation histories                                                       |
 | Commerce         | Immutable five-minute input-bound quotes; idempotent purchases; atomic budget reservations; owner approval/rejection; cancellation and payment reconciliation          |
 | Payments         | PayPal Sandbox OAuth, Orders creation/capture, saved-payment setup through the Payment Method Tokens API, persisted order/capture IDs; explicit local simulator        |

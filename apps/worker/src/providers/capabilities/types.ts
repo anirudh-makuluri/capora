@@ -3,7 +3,7 @@ import type { Env } from '../../env';
 
 export interface CapabilityContext {
   signal: AbortSignal;
-  env?: Env;
+  env?: Partial<Env>;
 }
 
 export interface CapabilityExecution {
@@ -15,6 +15,8 @@ export interface CapabilityExecution {
 
 export interface CapabilityDefinition {
   metadata: BuiltinCapability;
+  /** Longer deadlines are allowed only for queued built-ins, capped at two minutes. */
+  executionTimeoutMs?: number;
   validateInput?(input: Record<string, unknown>): void;
   execute(input: Record<string, unknown>, context: CapabilityContext): Promise<CapabilityExecution>;
 }

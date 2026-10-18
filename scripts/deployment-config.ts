@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import ts from 'typescript';
+import { providerVariableNames } from './provider-env';
 
 export const root = resolve(import.meta.dirname, '..');
 export const requiredSecrets = [
@@ -9,6 +10,7 @@ export const requiredSecrets = [
   'DEMO_PROVIDER_SECRET',
   'PAYPAL_CLIENT_ID',
   'PAYPAL_CLIENT_SECRET',
+  ...providerVariableNames,
 ];
 
 export type DeploymentConfig = {

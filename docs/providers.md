@@ -84,7 +84,7 @@ To add a capability:
 2. Import it and add it to `registeredCapabilities` in `apps/worker/src/providers/capabilities/registry.ts`.
 3. Run `pnpm catalog:sync` against an initialized local database, then restart/rebuild the Worker. Normal `pnpm setup:local` also syncs the registry.
 
-The same registry provides execution lookup and catalog metadata. Catalog sync writes those definitions into D1, where the marketplace and agents' `search_capabilities` tool discover them. `live.ts` handles shared validation, deadlines, response limits and the provenance envelope; it needs no capability-specific branches. Duplicate IDs and unsupported schemas fail at registry initialization.
+The same registry provides execution lookup and catalog metadata. Catalog sync writes those definitions into D1, where the marketplace and agents' `search_capabilities` tool discover them. `live.ts` handles shared validation, deadlines, response limits and the provenance envelope; it needs no capability-specific branches. Duplicate IDs and unsupported schemas fail at registry initialization. A queued built-in may declare `executionTimeoutMs`, capped at 120,000 ms; synchronous and custom HTTPS providers keep the 25-second deadline. SD-Artifacts uses this bounded queue exception to read its provider-side analysis stream.
 
 Catalog sync preserves users, credentials, policies, payments, results, observed usage and disabled status. Changed listing metadata increments the capability version, invalidating earlier quotes and unexecuted purchases according to the existing gateway contract; unchanged syncs preserve the version. Removing an entry from the registry does not automatically disable its D1 listing: disable it explicitly and keep its handler available for existing paid contracts.
 

@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile, access } from 'node:fs/promises';
 import { randomBytes } from 'node:crypto';
 import { resolve } from 'node:path';
+import { syncProviderEnvironment } from './provider-env';
 const root = resolve(import.meta.dirname, '..');
 await mkdir(resolve(root, '.local'), { recursive: true });
 const credentialsPath = resolve(root, '.local/credentials.json');
@@ -35,4 +36,7 @@ try {
   );
 }
 await mkdir(resolve(root, 'apps/web/dist'), { recursive: true });
+const providerSettings = await syncProviderEnvironment(resolve(root, '.env'), varsPath);
+if (providerSettings.length)
+  console.log(`Synced server-only provider settings: ${providerSettings.join(', ')}. Values hidden.`);
 console.log('Local credentials saved in .local/credentials.json (ignored by Git). No secrets printed.');

@@ -63,5 +63,7 @@ jobs:
         run: pnpm db:migrate:remote
       - name: Deploy Worker and frontend together
         run: pnpm --filter @capora/worker exec wrangler deploy --tag "$GITHUB_SHA"
+      - name: Sync registered capability catalog
+        run: pnpm catalog:sync -- --remote
       - name: Verify deployed routes, database, and authentication
         run: pnpm deploy:smoke

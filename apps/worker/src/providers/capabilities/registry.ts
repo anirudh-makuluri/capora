@@ -7,6 +7,11 @@ import { githubRepository } from './github_repository';
 import { codeScan } from './code_scan';
 import { documentFingerprint } from './document_fingerprint';
 import { awsLambdaEstimate } from './aws_lambda_estimate';
+import { braveSearch } from './brave_search';
+import { contextScrape } from './context_scrape';
+import { azureMapsGeocode } from './azure_maps_geocode';
+import { sdRepoAnalysis } from './sd_repo_analysis';
+import { riotRecentMatches } from './riot_recent_matches';
 import type { CapabilityDefinition } from './types';
 
 export function createCapabilityRegistry(definitions: readonly CapabilityDefinition[]) {
@@ -19,6 +24,14 @@ export function createCapabilityRegistry(definitions: readonly CapabilityDefinit
     if (byEndpoint.has(endpoint)) throw new Error(`Duplicate built-in capability ID: ${metadata.id}`);
     validateSchemaDefinition(metadata.schema);
     validateSchemaDefinition(builtinOutputSchema(metadata));
+    if (
+      definition.executionTimeoutMs !== undefined &&
+      (!metadata.async ||
+        !Number.isInteger(definition.executionTimeoutMs) ||
+        definition.executionTimeoutMs < 1 ||
+        definition.executionTimeoutMs > 120000)
+    )
+      throw new Error(`Invalid queued execution timeout: ${metadata.id}`);
     byEndpoint.set(endpoint, definition);
   }
   return {
@@ -40,6 +53,11 @@ export const registeredCapabilities: readonly CapabilityDefinition[] = [
   codeScan,
   documentFingerprint,
   awsLambdaEstimate,
+  braveSearch,
+  contextScrape,
+  azureMapsGeocode,
+  sdRepoAnalysis,
+  riotRecentMatches,
 ];
 
 const registry = createCapabilityRegistry(registeredCapabilities);

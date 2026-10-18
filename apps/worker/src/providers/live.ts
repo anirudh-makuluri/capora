@@ -11,11 +11,11 @@ export function validateBuiltinInput(endpoint: string, input: Record<string, unk
   return definition.metadata;
 }
 
-export async function invokeBuiltin(endpoint: string, input: Record<string, unknown>, env?: Env) {
+export async function invokeBuiltin(endpoint: string, input: Record<string, unknown>, env?: Partial<Env>) {
   const definition = getRegisteredCapability(endpoint);
   const capability = validateBuiltinInput(endpoint, input);
   const result = await definition.execute(input, {
-    signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
+    signal: AbortSignal.timeout(definition.executionTimeoutMs ?? PROVIDER_TIMEOUT_MS),
     env,
   });
   const output = {

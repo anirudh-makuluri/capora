@@ -41,6 +41,18 @@ test('marketplace discovers, filters, and opens machine-readable details', async
   await expect(page.getByRole('heading', { name: 'AWS Lambda Cost Estimate', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Input schema', exact: true }).click();
   await expect(page.locator('.detail-panel pre')).toContainText('averageBilledDurationMs');
+  for (const [id, name, field] of [
+    ['brave_search', 'Brave Web Search', 'query'],
+    ['context_scrape', 'Context.dev Page Extraction', 'url'],
+    ['azure_maps_geocode', 'Azure Maps Geocoding', 'query'],
+    ['sd_repo_analysis', 'SD-Artifacts Repository Analysis', 'packagePath'],
+    ['riot_recent_matches', 'Riot Recent League Matches', 'gameName'],
+  ]) {
+    await page.goto(`/marketplace/${id}`);
+    await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Input schema', exact: true }).click();
+    await expect(page.locator('.detail-panel pre')).toContainText(field);
+  }
   expect(errors).toEqual([]);
 });
 test('purchased computed tools deliver usable results with approval and queued execution', async ({
