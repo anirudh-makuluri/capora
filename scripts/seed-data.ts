@@ -1,5 +1,6 @@
 import { builtinCapabilities } from '../apps/worker/src/providers/capabilities/registry';
 import { builtinOutputSchema } from '../packages/provider-sdk/src/builtins';
+import { bankCatalogStatements } from '../apps/worker/src/bank/capabilities';
 
 // Seeding, catalog sync and execution use the same registered definitions.
 export { builtinCapabilities as seedCapabilities, builtinOutputSchema };
@@ -9,7 +10,7 @@ export const sqlValue = (value: unknown) =>
     : `'${String(typeof value === 'object' ? JSON.stringify(value) : value).replace(/'/g, "''")}'`;
 
 export function catalogStatements(ownerId: string, now: string): string[] {
-  return builtinCapabilities.flatMap((capability) => {
+  return [...builtinCapabilities.flatMap((capability) => {
     const providerId = `provider_${capability.id}`;
     const fields = {
       name: capability.name,
@@ -37,5 +38,5 @@ export function catalogStatements(ownerId: string, now: string): string[] {
        AND EXISTS (SELECT 1 FROM providers WHERE id=excluded.provider_id AND user_id=${sqlValue(ownerId)})
        AND (${columns.map((column) => `capabilities.${column} IS NOT excluded.${column}`).join(' OR ')});`,
     ];
-  });
+  }), ...bankCatalogStatements(ownerId, now, sqlValue)];
 }

@@ -44,10 +44,10 @@ export function Transactions() {
         'Agent',
         'Capability',
         'Provider',
-        'Amount USD',
+        'Amount cUSD',
         'Status',
         'Payment mode',
-        'PayPal order ID',
+        'Historical payment order ID',
       ],
       ...rows.map((p) => [
         p.createdAt,
@@ -189,7 +189,7 @@ export function Transactions() {
                     <td className="align-right">
                       <strong>{money(p.amountCents)}</strong>
                       <small className="payment-kind">
-                        {p.paymentMode === 'demo' ? 'Simulated' : 'PayPal sandbox'}
+                        {p.orderId?.startsWith('DEMO-') ? 'Local fixture' : 'cUSD escrow'}
                       </small>
                     </td>
                     <td>
@@ -228,7 +228,7 @@ export function Transactions() {
           <span>
             {rows.length} {rows.length === 1 ? 'purchase' : 'purchases'}
           </span>
-          <span>USD · {data?.paymentMode === 'demo' ? 'Local simulated payments' : 'PayPal Sandbox'}</span>
+          <span>cUSD · TESTNET / SIMULATED FUNDS</span>
         </div>
       </section>
       {current && (
@@ -265,7 +265,11 @@ export function Transactions() {
               <div>
                 <dt>Payment mode</dt>
                 <dd>
-                  {current.paymentMode === 'demo' ? 'Local simulator — no external charge' : 'PayPal Sandbox'}
+                  {current.orderId?.startsWith('DEMO-')
+                    ? 'Local payment fixture'
+                    : current.orderId
+                      ? 'Historical PayPal Sandbox receipt'
+                      : 'cUSD escrow · Base Sepolia'}
                 </dd>
               </div>
               <div>

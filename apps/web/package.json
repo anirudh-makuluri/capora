@@ -8,26 +8,27 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@capora/types": "workspace:*",
+    "@capora/bank": "workspace:*",
     "@capora/mcp": "workspace:*",
+    "@capora/types": "workspace:*",
+    "@radix-ui/react-dialog": "latest",
+    "@radix-ui/react-slot": "latest",
+    "@tanstack/react-query": "latest",
+    "class-variance-authority": "latest",
+    "clsx": "latest",
+    "lucide-react": "latest",
     "react": "latest",
     "react-dom": "latest",
     "react-router-dom": "latest",
-    "@tanstack/react-query": "latest",
-    "lucide-react": "latest",
-    "@radix-ui/react-dialog": "latest",
-    "@radix-ui/react-slot": "latest",
-    "class-variance-authority": "latest",
-    "clsx": "latest",
     "tailwind-merge": "latest",
     "zod": "latest"
   },
   "devDependencies": {
-    "vite": "latest",
-    "@vitejs/plugin-react": "latest",
-    "tailwindcss": "latest",
     "@tailwindcss/vite": "latest",
     "@types/react": "latest",
-    "@types/react-dom": "latest"
+    "@types/react-dom": "latest",
+    "@vitejs/plugin-react": "latest",
+    "tailwindcss": "latest",
+    "vite": "latest"
   }
 }

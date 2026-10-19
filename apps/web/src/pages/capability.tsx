@@ -314,8 +314,8 @@ function AcquirePanel({ capability }: { capability: Capability }) {
           )}
           <div className="sandbox-note">
             {data?.paymentMode === 'demo'
-              ? 'Local payment simulator · no PayPal charge'
-              : 'PayPal Sandbox · no real money'}
+              ? 'cUSD escrow · simulated funds'
+              : 'cUSD escrow · Base Sepolia testnet'}
           </div>
         </>
       )}

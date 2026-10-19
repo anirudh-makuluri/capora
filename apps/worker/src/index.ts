@@ -36,6 +36,8 @@ import { billingRoutes } from './routes/billing';
 import { adminRoutes } from './routes/admin';
 import { publicConnectRoutes, connectRoutes } from './routes/connect';
 import type { AppEnv, Env } from './env';
+import { bankRoutes,publicBankRoutes } from './routes/bank';
+import { bankKeeper } from './bank/keeper';
 
 export const app = new Hono<AppEnv>();
 app.use('*', secureHeaders());
@@ -100,6 +102,7 @@ app.get('/api/health', (c) =>
 );
 app.route('/api/auth', authRoutes);
 app.route('/api/connect', publicConnectRoutes);
+app.route('/api/bank', publicBankRoutes);
 app.get('/api/capabilities', async (c) => {
   const q = c.req.query();
   const input = searchSchema.parse({
@@ -123,6 +126,7 @@ app.route('/api/connect', connectRoutes);
 app.route('/api/providers', providerRoutes);
 app.route('/api/admin', adminRoutes);
 app.route('/api/billing', billingRoutes);
+app.route('/api/bank', bankRoutes);
 app.post('/api/approvals/:purchaseId', async (c) => {
   const { approve } = z.object({ approve: z.boolean() }).parse(await c.req.json());
   return c.json(await resolveApproval(c.env, c.get('userId'), c.req.param('purchaseId'), approve));
@@ -174,6 +178,6 @@ export default {
     }
   },
   async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext) {
-    ctx.waitUntil(Promise.all([expireApprovals(env), recoverJobs(env), cleanupAuth(env)]));
+    ctx.waitUntil(Promise.all([expireApprovals(env), recoverJobs(env), cleanupAuth(env), bankKeeper(env)]));
   },
 } satisfies ExportedHandler<Env, JobMessage>;

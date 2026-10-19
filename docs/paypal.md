@@ -1,5 +1,7 @@
 # PayPal Sandbox setup and payment semantics
 
+**Capora Bank supersedes the per-purchase payment flow below.** New purchases use cUSD escrow; PayPal Sandbox is exclusively for verified top-ups. See [Bank setup and recovery](bank.md). The saved-method/order notes below describe the historical integration, and the old local payment double is now explicitly restricted to isolated regression fixtures.
+
 Capora has two deliberately separate modes:
 
 - `demo`: loopback-only, local simulator. `DEMO-…` order/capture IDs are not PayPal records.

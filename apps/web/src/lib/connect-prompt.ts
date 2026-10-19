@@ -3,9 +3,9 @@ export function connectionPrompt(origin: string) {
 
 First ask me for these four values together, and wait for my answers:
 1. Agent name (2–80 characters).
-2. Daily budget in USD (resets at midnight UTC).
-3. Auto-approval threshold in USD (purchases at or below this amount can proceed automatically).
-4. Maximum per purchase in USD (a hard limit, even with human approval).
+2. Daily budget in cUSD (simulated USD) (resets at midnight UTC).
+3. Auto-approval threshold in cUSD (simulated USD) (purchases at or below this amount can proceed automatically).
+4. Maximum per purchase in cUSD (simulated USD) (a hard limit, even with human approval).
 Explain that purchases above the auto-approval threshold require my approval in Capora. Do not silently choose defaults. Amounts must be between $0 and $1,000 with at most two decimal places, and auto-approval <= maximum per purchase <= daily budget. Clarify invalid answers before proceeding.
 
 After I answer:
@@ -16,5 +16,5 @@ After I answer:
 5. Register the returned endpoint under the returned serverName, preserving existing client configuration and connections. For Codex, run the returned helperPath with configure-codex --connection HANDLE. This appends a distinct connection to the user-level config, sets the Authorization header privately, and leaves existing connections untouched. Do not read or print the config, credentialsFile or headers subcommand output into chat: they contain secrets. For another client, consult its current official MCP setup instructions and securely configure the Authorization header from credentialsFile without printing the token or putting it in project files. Explain if this client cannot support the connection.
 6. Tell me if I need to restart the client or start a fresh session. Once available, call get_budget through the client's actual Capora MCP tools and confirm my agent name and all three limits. Distinguish the helper's successful HTTP checks from tools actually loaded into this chat. Do not claim this chat is connected until it can call the tools.
 
-Do not purchase or invoke capabilities during setup. Do not change existing agents or their budgets. PayPal Sandbox wallet authorization is separate from this connection; if a purchase later needs payment setup, direct me to Capora. Never include tokens, passwords or credential-file contents in your replies.`;
+Do not purchase or invoke capabilities during setup. Do not change existing agents or their budgets. Each agent has its own custodial Base Sepolia wallet. PayPal Sandbox is only for human top-ups; paid capability purchases settle in demo cUSD escrow. If a wallet needs provisioning or funds, direct me to Capora Bank. Financial mutations use the same quote, purchase and invoke tools with bank capabilities; never change policy or destinations without explicit owner approval. Never include tokens, passwords or credential-file contents in your replies.`;
 }

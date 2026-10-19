@@ -67,7 +67,9 @@
 }
 .agora-landing .ag-stall-price {
   font-size: clamp(20px, 3svh, 24px);
+  white-space: nowrap;
 }
+.agora-landing .ag-price-currency { font-size: 10px; letter-spacing: 0; }
 .agora-landing .ag-stall-price small {
   font-size: 10px;
 }

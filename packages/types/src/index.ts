@@ -19,8 +19,7 @@ export type JobStatus = (typeof jobStatuses)[number];
 export type JsonSchema = Record<string, unknown>;
 export type JsonInput = Record<string, unknown>;
 
-export const money = (cents: number) =>
-  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cents / 100);
+export const money = (cents: number) => `${new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(cents / 100)} cUSD`;
 export const dollarsToCents = (amount: number) => Math.round(amount * 100);
 
 export const policySchema = z
@@ -121,7 +120,7 @@ export interface Capability {
   type: CapabilityType;
   category: string;
   priceCents: number;
-  currency: 'USD';
+  currency: 'USD' | 'cUSD';
   pricingUnit: string;
   inputSchema: JsonSchema;
   outputSchema: JsonSchema;
@@ -156,7 +155,8 @@ export interface Quote {
   agentId: string;
   capabilityId: string;
   priceCents: number;
-  currency: 'USD';
+  currency: 'USD' | 'cUSD';
+  escrowFeeBps?: number | null;
   input: JsonInput;
   reason: string | null;
   createdAt: string;

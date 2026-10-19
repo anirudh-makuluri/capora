@@ -120,7 +120,7 @@ const options = await client.callTool({
           <section className="panel docs-panel docs-contract">
             <h3>Small, deliberate contracts</h3>
             <ul>
-              <li>Money is integer USD cents.</li>
+              <li>Prices use integer cUSD cents (simulated USD). PayPal Sandbox funds top-ups; purchases use cUSD escrow.</li>
               <li>Quotes last five minutes.</li>
               <li>Exact quoted input is required.</li>
               <li>A purchase grants one invocation.</li>

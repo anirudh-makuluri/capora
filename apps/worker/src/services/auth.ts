@@ -90,5 +90,7 @@ export async function createAgent(env: Env, userId: string, name: string) {
       .insert(spendingPolicies)
       .values({ agentId, ...DEFAULT_POLICY }),
   ]);
+  const { accountIntent } = await import('../bank/accounts');
+  await accountIntent(env, 'agent', agentId);
   return { id: agentId, token: rawToken };
 }

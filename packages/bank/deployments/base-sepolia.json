@@ -1,0 +1,11 @@
+{
+  "chainId": 84532,
+  "status": "not_deployed",
+  "rpcEnvironmentVariable": "BANK_RPC_URL",
+  "explorer": "https://sepolia.basescan.org",
+  "tokenDecimals": 6,
+  "shareDecimals": 12,
+  "requiredConfirmations": 3,
+  "deploymentOutput": ".local/bank-sepolia.json",
+  "disclosure": "No contract addresses are fabricated. Run the deployment script with a funded managed testnet signer."
+}

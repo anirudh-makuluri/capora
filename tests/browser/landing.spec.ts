@@ -44,7 +44,7 @@ test('public landing uses current catalog metadata, accessible inspection, and e
     await trigger.click();
     const dialog = page.getByRole('dialog');
     await expect(dialog).toContainText(item.description);
-    await expect(dialog).toContainText(`$${(item.priceCents / 100).toFixed(2)}`);
+    await expect(dialog).toContainText(`${(item.priceCents / 100).toFixed(2)} cUSD`);
     await expect(dialog).toContainText('FOR DEMONSTRATION PURPOSES ONLY');
     await expect(dialog.getByRole('link')).toHaveAttribute('href', `/marketplace/${id}`);
     for (let j = 0; j < 6; j++) {
@@ -286,7 +286,7 @@ test('catalog failure or missing listing cannot create a fabricated offer', asyn
   await page.goto('/');
   await expect(page.getByRole('status')).toContainText('The catalog could not be loaded');
   await expect(page.getByRole('button', { name: 'Inspect stall' })).toHaveCount(0);
-  await expect(page.locator('.ag-stall-price')).not.toContainText(['$0.20', '$0.05', '$3.00']);
+  await expect(page.locator('.ag-stall-price')).not.toContainText(['0.20 cUSD', '0.05 cUSD', '3.00 cUSD']);
   await page.route('**/api/capabilities', (route) =>
     route.fulfill({ contentType: 'application/json', body: '[]' }),
   );

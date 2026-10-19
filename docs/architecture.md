@@ -1,5 +1,7 @@
 # Architecture and security decisions
 
+The financial extension is described in [Capora Bank](bank.md): per-agent/provider smart wallets, verified Sandbox top-ups, cUSD escrow, vaults, lending, public auction chits, managed signing and confirmed-event indexing. It replaces the historical per-purchase PayPal path; the existing identity, catalog, approvals and provider execution remain the integration points.
+
 ## Runtime and ownership
 
 One Cloudflare Worker hosts Hono REST routes, an official SDK Streamable HTTP MCP endpoint, static frontend assets, the Queue consumer, and a scheduled recovery handler. React never calls PayPal or a provider directly. REST and MCP invoke the same domain services under `apps/worker/src/services`.

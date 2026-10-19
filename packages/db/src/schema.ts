@@ -117,7 +117,7 @@ export const capabilities = sqliteTable(
     type: text('type').$type<CapabilityType>().notNull(),
     category: text('category').notNull(),
     priceCents: integer('price_cents').notNull(),
-    currency: text('currency').$type<'USD'>().notNull().default('USD'),
+    currency: text('currency').$type<'USD' | 'cUSD'>().notNull().default('USD'),
     pricingUnit: text('pricing_unit').notNull(),
     inputSchema: text('input_schema', { mode: 'json' }).$type<JsonSchema>().notNull(),
     outputSchema: text('output_schema', { mode: 'json' }).$type<JsonSchema>().notNull(),
@@ -166,7 +166,8 @@ export const quotes = sqliteTable(
       .notNull()
       .references(() => capabilities.id),
     priceCents: integer('price_cents').notNull(),
-    currency: text('currency').$type<'USD'>().notNull().default('USD'),
+    escrowFeeBps: integer('escrow_fee_bps'),
+    currency: text('currency').$type<'USD' | 'cUSD'>().notNull().default('USD'),
     input: text('input', { mode: 'json' }).$type<JsonInput>().notNull(),
     inputHash: text('input_hash').notNull(),
     capabilityVersion: integer('capability_version').notNull(),
@@ -352,3 +353,187 @@ export const agentSetups = sqliteTable(
   },
   (t) => [index('agent_setups_expiry_idx').on(t.expiresAt)],
 );
+
+// Chain balances are never stored here. These tables index identities, intents and confirmed receipts.
+export const bankAccounts = sqliteTable(
+  'bank_accounts',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id),
+    agentId: text('agent_id')
+      .unique()
+      .references(() => agents.id),
+    providerId: text('provider_id')
+      .unique()
+      .references(() => providers.id),
+    identity: text('identity').notNull().unique(),
+    address: text('address').unique(),
+    chainId: integer('chain_id').notNull().default(84532),
+    state: text('state').notNull().default('pending'),
+    createdAt: text('created_at').notNull(),
+  },
+  (t) => [index('bank_accounts_owner').on(t.userId)],
+);
+export const bankPolicies = sqliteTable('bank_policies', {
+  agentId: text('agent_id')
+    .primaryKey()
+    .references(() => agents.id),
+  destinations: text('destinations').notNull().default('[]'),
+  maxInvestmentCents: integer('max_investment_cents').notNull().default(0),
+  maxLoanCents: integer('max_loan_cents').notNull().default(0),
+  maxChitCents: integer('max_chit_cents').notNull().default(0),
+  updatedAt: text('updated_at').notNull(),
+});
+export const bankTopups = sqliteTable('bank_topups', {
+  id: text('id').primaryKey(),
+  accountId: text('account_id')
+    .notNull()
+    .references(() => bankAccounts.id),
+  userId: text('user_id')
+    .notNull()
+    .references(() => users.id),
+  amountCents: integer('amount_cents').notNull(),
+  orderId: text('order_id').unique(),
+  captureId: text('capture_id').unique(),
+  state: text('state').notNull(),
+  approvalUrl: text('approval_url'),
+  mintIntent: text('mint_intent').notNull().unique(),
+  txHash: text('tx_hash'),
+  error: text('error'),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+});
+export const bankTransactions = sqliteTable(
+  'bank_transactions',
+  {
+    id: text('id').primaryKey(),
+    accountId: text('account_id').references(() => bankAccounts.id),
+    purpose: text('purpose').notNull(),
+    target: text('target').notNull(),
+    calldata: text('calldata').notNull(),
+    commitment: text('commitment').notNull(),
+    state: text('state').notNull().default('prepared'),
+    txHash: text('tx_hash').unique(),
+    blockNumber: text('block_number'),
+    blockHash: text('block_hash'),
+    error: text('error'),
+    attempts: integer('attempts').notNull().default(0),
+    leaseId: text('lease_id'),
+    leaseUntil: integer('lease_until').notNull().default(0),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (t) => [index('bank_tx_recovery').on(t.state, t.updatedAt)],
+);
+export const bankEscrows = sqliteTable('bank_escrows', {
+  fundAddress: text('fund_address'),
+  purchaseId: text('purchase_id')
+    .primaryKey()
+    .references(() => purchases.id),
+  buyerAccountId: text('buyer_account_id')
+    .notNull()
+    .references(() => bankAccounts.id),
+  sellerAccountId: text('seller_account_id')
+    .notNull()
+    .references(() => bankAccounts.id),
+  escrowKey: text('escrow_key').notNull().unique(),
+  amountUnits: text('amount_units').notNull(),
+  feeBps: integer('fee_bps').notNull(),
+  feeUnits: text('fee_units').notNull(),
+  deadline: integer('deadline').notNull(),
+  state: text('state').notNull(),
+  invocationId: text('invocation_id')
+    .unique()
+    .references(() => invocations.id),
+  resultHash: text('result_hash'),
+  fundingTx: text('funding_tx'),
+  resolutionTx: text('resolution_tx'),
+  updatedAt: text('updated_at').notNull(),
+});
+export const bankEntities = sqliteTable('bank_entities', {
+  id: text('id').primaryKey(),
+  address: text('address').notNull().unique(),
+  kind: text('kind').notNull(),
+  creatorAgentId: text('creator_agent_id')
+    .notNull()
+    .references(() => agents.id),
+  name: text('name').notNull(),
+  terms: text('terms').notNull(),
+  createdAt: text('created_at').notNull(),
+});
+export const bankPositions = sqliteTable(
+  'bank_positions',
+  {
+    id: text('id').primaryKey(),
+    agentId: text('agent_id')
+      .notNull()
+      .references(() => agents.id),
+    entityAddress: text('entity_address').notNull(),
+    kind: text('kind').notNull(),
+    onchainId: text('onchain_id').notNull(),
+    createdAt: text('created_at').notNull(),
+  },
+  (t) => [index('bank_positions_agent').on(t.agentId)],
+);
+export const bankSnapshots = sqliteTable('bank_snapshots', {
+  id: text('id').primaryKey(),
+  entityAddress: text('entity_address').notNull(),
+  blockNumber: text('block_number').notNull(),
+  data: text('data').notNull(),
+  createdAt: text('created_at').notNull(),
+});
+export const bankEvents = sqliteTable('bank_events', {
+  id: text('id').primaryKey(),
+  source: text('source').notNull(),
+  txHash: text('tx_hash'),
+  blockNumber: text('block_number'),
+  blockHash: text('block_hash'),
+  data: text('data').notNull(),
+  createdAt: text('created_at').notNull(),
+});
+export const bankCursors = sqliteTable('bank_cursors', {
+  source: text('source').primaryKey(),
+  blockNumber: text('block_number').notNull(),
+  blockHash: text('block_hash').notNull(),
+});
+export const bankPolicyDecisions = sqliteTable('bank_policy_decisions', {
+  purchaseId: text('purchase_id')
+    .primaryKey()
+    .references(() => purchases.id),
+  agentId: text('agent_id')
+    .notNull()
+    .references(() => agents.id),
+  action: text('action').notNull(),
+  amountUnits: text('amount_units').notNull(),
+  decision: text('decision').notNull(),
+  authorizedBy: text('authorized_by'),
+  createdAt: text('created_at').notNull(),
+});
+export const bankStrategySchedules = sqliteTable('bank_strategy_schedules', {
+  fundAddress: text('fund_address').primaryKey(),
+  agentId: text('agent_id')
+    .notNull()
+    .references(() => agents.id),
+  enabled: integer('enabled').notNull().default(0),
+  intervalSeconds: integer('interval_seconds').notNull(),
+  allowedCapabilities: text('allowed_capabilities').notNull().default('[]'),
+  maxCallsPerDay: integer('max_calls_per_day').notNull(),
+  plannerDay: text('planner_day').notNull().default(''),
+  callsToday: integer('calls_today').notNull().default(0),
+  nextRunAt: integer('next_run_at').notNull().default(0),
+  lastReport: text('last_report'),
+  updatedAt: text('updated_at').notNull(),
+});
+export const bankFundExpenses = sqliteTable('bank_fund_expenses', {
+  quoteId: text('quote_id')
+    .primaryKey()
+    .references(() => quotes.id),
+  fundAddress: text('fund_address').notNull(),
+  agentId: text('agent_id')
+    .notNull()
+    .references(() => agents.id),
+  reason: text('reason').notNull(),
+  createdAt: text('created_at').notNull(),
+});

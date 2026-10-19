@@ -50,6 +50,7 @@ beforeAll(async () => {
       bindings: {
         DEV_MODE: 'true',
         PAYMENT_MODE: 'demo',
+        BANK_LEGACY_PAYMENT_FIXTURE: 'true',
         PAYPAL_ENVIRONMENT: 'sandbox',
         CAPORA_BASE_URL: 'http://localhost:5173',
         SESSION_SECRET: secret,

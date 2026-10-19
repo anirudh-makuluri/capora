@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Bot,
   Plus,
@@ -16,7 +16,6 @@ import {
 import { money, type Agent, type SpendingPolicy } from '@capora/types';
 import { Button, Dialog, Field, CodeBlock, ErrorNotice, Status, Empty } from '../components/ui';
 import { api, useAction, useDashboard } from '../lib/api';
-import { useQueryClient } from '@tanstack/react-query';
 export function Agents() {
   const { data, error } = useDashboard();
   const [create, setCreate] = useState(false);
@@ -24,9 +23,6 @@ export function Agents() {
   const [selected, setSelected] = useState<Agent>();
   const [newToken, setNewToken] = useState('');
   const [copied, setCopied] = useState(false);
-  const [params, setParams] = useSearchParams();
-  const billingHandled = useRef(false);
-  const client = useQueryClient();
   const add = useAction(async () => {
     const response = await api<{ id: string; token: string }>('/agents', { method: 'POST', body: { name } });
     setCreate(false);
@@ -34,25 +30,6 @@ export function Agents() {
     setNewToken(response.token);
     return response;
   });
-  const billing = useAction(async () => {
-    const res = await api<{ approvalUrl: string }>('/billing/setup', { method: 'POST', body: {} });
-    window.location.assign(res.approvalUrl);
-  });
-  const confirmBilling = useAction((setupId: string) =>
-    api(`/billing/setup/${setupId}/confirm`, { method: 'POST', body: {} }),
-  );
-  useEffect(() => {
-    const setup = params.get('billing');
-    if (setup && !billingHandled.current) {
-      billingHandled.current = true;
-      confirmBilling.mutate(setup, {
-        onSuccess: () => {
-          setParams({});
-          void client.invalidateQueries({ queryKey: ['dashboard'] });
-        },
-      });
-    }
-  }, [params, confirmBilling, setParams, client]);
   const currentSelected = data?.agents.find((a) => a.id === selected?.id) ?? selected;
   return (
     <>
@@ -66,30 +43,11 @@ export function Agents() {
           <Plus size={17} /> Create agent
         </Button>
       </div>
-      <ErrorNotice error={error ?? billing.error ?? confirmBilling.error} />
+      <ErrorNotice error={error} />
       <div className="billing-banner">
-        <div className="paypal-mark">PayPal</div>
-        <div>
-          <strong>
-            {data?.paymentMode === 'demo'
-              ? 'Local demo payments are enabled'
-              : data?.billingConnected
-                ? 'Your sandbox payment method is connected'
-                : 'Connect a sandbox payment method'}
-          </strong>
-          <p>
-            {data?.paymentMode === 'demo'
-              ? 'Payments are simulated locally. Configure PayPal Sandbox to demonstrate real sandbox orders.'
-              : data?.billingConnected
-                ? 'Agents can charge your saved method within their policy. No real money is used.'
-                : 'Authorize a saved payment method once for autonomous purchases. Standard checkout also works.'}
-          </p>
-        </div>
-        {data?.paymentMode === 'sandbox' && (
-          <Button variant="secondary" busy={billing.isPending} onClick={() => billing.mutate()}>
-            {data.billingConnected ? 'Reconnect' : 'Connect PayPal'} <ArrowRight size={15} />
-          </Button>
-        )}
+        <div className="paypal-mark">cUSD</div>
+        <div><strong>Each agent has its own wallet</strong><p>Top up with PayPal Sandbox in Capora Bank. Capability purchases use cUSD escrow within your delegated limits. TESTNET / SIMULATED FUNDS.</p></div>
+        <Button asChild variant="secondary"><Link to="/bank">Open Capora Bank <ArrowRight size={15} /></Link></Button>
       </div>
       <div className="agent-grid">
         {data?.agents.map((a) => (
@@ -100,7 +58,7 @@ export function Agents() {
               </span>
               <Status status={a.status} />
             </div>
-            <h2>{a.name}</h2>
+            <h2>{a.name}</h2><Link to={`/bank?agent=${a.id}`}>Wallet and financial policy</Link>
             <span className="agent-id mono">{a.id}</span>
             <div className="agent-spending">
               <span>Daily budget</span>

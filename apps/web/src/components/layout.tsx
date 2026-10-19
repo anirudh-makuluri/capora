@@ -53,6 +53,7 @@ function WorkspaceLayout() {
     { to: '/marketplace', label: 'Marketplace', icon: Blocks },
     { to: '/overview', label: 'Overview', icon: ChartNoAxesCombined },
     { to: '/agents', label: 'My agents', icon: Bot },
+    { to: '/bank', label: 'Capora Bank', icon: CreditCard },
     { to: '/transactions', label: 'Transactions', icon: CreditCard },
     { to: '/approvals', label: 'Approvals', icon: Inbox, count: data?.approvals.length },
   ];
@@ -165,7 +166,7 @@ function WorkspaceLayout() {
           <div className="topbar-right">
             <span className="environment">
               <span className="status-dot" />
-              {data?.paymentMode === 'demo' ? 'Local demo' : 'PayPal sandbox'}
+              {data?.paymentMode === 'demo' ? 'Local demo' : 'Testnet · simulated funds'}
             </span>
             <span className="topbar-divider" />
             <Button variant="ghost" size="sm" onClick={() => setConnect(true)}>

@@ -9,6 +9,7 @@ const routes = [
   '/marketplace/gleif_entities',
   '/overview',
   '/agents',
+  '/bank',
   '/transactions',
   '/approvals',
   '/providers',
@@ -44,7 +45,8 @@ async function assertTheme(page: Page) {
       .first()
       .evaluate((el) => getComputedStyle(el).fontFamily),
   ).toContain('Chakra Petch');
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(page.viewportSize()!.width);
+  const width = await page.evaluate(() => document.documentElement.scrollWidth);
+  expect(width, `Horizontal overflow on ${page.url()}`).toBe(page.viewportSize()!.width);
   const families = await page
     .locator('h1,h2,h3,p,button,input,textarea,code,pre,select')
     .evaluateAll((elements) => [

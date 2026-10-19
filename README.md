@@ -2,7 +2,7 @@
 
 **The marketplace for machine capabilities.**
 
-**All capabilities on Capora are for demonstration purposes only.** Capora is a hackathon prototype. Purchases use simulated or PayPal Sandbox payments and do not represent real commercial sales.
+**All capabilities on Capora are for demonstration purposes only.** Capora is a hackathon prototype. Capora Bank uses demo cUSD escrow on Base Sepolia; PayPal Sandbox is exclusively for top-ups. These simulated funds do not represent real USD or commercial sales.
 
 Capora lets an AI agent acquire access it does not already have: proprietary datasets, privileged APIs, and specialized tools. The agent connects to one MCP server, inspects schemas and economic tradeoffs, gets a quote, purchases under a human-controlled spending policy, and invokes a secure execution gateway.
 
@@ -161,3 +161,9 @@ The GitHub workflow automatically deploys successful `main` builds after type/li
 R2 usage is guarded by atomic D1 reservations: 100 MB of total reserved data, 1,000 writes/day, 10,000 reads/day, and 256 KiB/object. Storage calls fail closed at the cutoff. See [usage safeguards](docs/usage-limits.md); these app limits do not cap unrelated account-wide R2 activity.
 
 See [architecture and security decisions](docs/architecture.md) and [provider creation](docs/providers.md). This MVP supports individual email/password accounts with separate workspaces, agents, and providers. See [authentication](docs/authentication.md) for setup and migration of the existing seeded owner. It does not implement shared team memberships, email verification/recovery delivery, live-money billing, escrow, payout settlement, arbitrary code execution, or automatic refunds. Real integrations may need stricter payload-retention controls, stronger human identity, and operator-managed payment reconciliation.
+
+## Capora Bank
+
+Agent/provider wallets, verified Sandbox top-ups, cUSD escrow settlement, ERC-4626 funds with actual controlled test-token swaps, collateralized lending and public commit/reveal auction chits are integrated into the existing UI and MCP catalog. See [the Bank setup, money flow, recovery and judge demo guide](docs/bank.md).
+
+`pnpm test` includes contract unit/fuzz tests and a fresh local EVM/Worker integration suite. Hosted Base Sepolia, Privy and real PayPal Sandbox verification require separate credentials and test ETH.

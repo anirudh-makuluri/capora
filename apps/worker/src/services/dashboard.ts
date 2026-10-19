@@ -10,7 +10,7 @@ import {
   activity,
   transactions,
 } from '@capora/db';
-import { eq, desc, and } from 'drizzle-orm';
+import { eq, desc, and, sql } from 'drizzle-orm';
 import type { Dashboard, Agent } from '@capora/types';
 import { getBudget } from './commerce';
 import type { Env } from '../env';
@@ -92,7 +92,7 @@ export async function getDashboard(env: Env, userId: string): Promise<Dashboard>
       const revenue = await db
         .select({ amount: transactions.amountCents })
         .from(transactions)
-        .where(and(eq(transactions.providerId, p.id), eq(transactions.status, 'completed')));
+        .where(and(eq(transactions.providerId, p.id), sql`${transactions.status} IN ('completed','released')`));
       const providerCaps = capRows.filter((c) => c.providerId === p.id);
       return {
         ...p,

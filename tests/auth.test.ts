@@ -46,6 +46,7 @@ beforeAll(async () => {
       bindings: {
         DEV_MODE: 'false',
         PAYMENT_MODE: 'demo',
+        BANK_LEGACY_PAYMENT_FIXTURE: 'true',
         PAYPAL_ENVIRONMENT: 'sandbox',
         CAPORA_BASE_URL: base,
         SESSION_SECRET: secret,
@@ -89,6 +90,7 @@ beforeEach(async () => {
     'activity',
     'agent_setups',
     'spending_policies',
+    'bank_accounts',
     'agents',
     'providers',
     'auth_sessions',

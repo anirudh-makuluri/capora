@@ -64,9 +64,9 @@ test('copied prompt creates an agent through browser authorization and verifies 
   await expect(page).toHaveURL(started.verificationUrl);
   await expect(page.getByLabel('Connection code')).toHaveText(started.userCode);
   await expect(page.locator('.setup-limits')).toContainText('Prompt browser agent');
-  await expect(page.locator('.setup-limits')).toContainText('$7.25');
-  await expect(page.locator('.setup-limits')).toContainText('$0.40');
-  await expect(page.locator('.setup-limits')).toContainText('$3.50');
+  await expect(page.locator('.setup-limits')).toContainText('7.25 cUSD');
+  await expect(page.locator('.setup-limits')).toContainText('0.40 cUSD');
+  await expect(page.locator('.setup-limits')).toContainText('3.50 cUSD');
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: '.local/screenshots/connect-mobile.png', fullPage: true });

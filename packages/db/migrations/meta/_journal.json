@@ -57,6 +57,20 @@
       "when": 1792340487589,
       "tag": "0007_admin_dashboard",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1792377502008,
+      "tag": "0008_capora_bank",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1792378068662,
+      "tag": "0009_bank_strategies",
+      "breakpoints": true
     }
   ]
 }

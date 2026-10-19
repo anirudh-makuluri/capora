@@ -2,6 +2,8 @@
 
 Endpoint: `/mcp`. Transport: authenticated, stateless **Streamable HTTP** using the official `@modelcontextprotocol/sdk` Web Standard server transport.
 
+Capora Bank uses the same catalog and stable meta-tools. Search the `Capora Bank` category for typed wallet, fund, lending and public chit capabilities. Prices/budgets are cUSD cents (simulated USD); PayPal Sandbox is only for human top-ups. See [Bank money flow, policy and deployment](bank.md).
+
 Create an agent in My agents; save its one-time token in the client’s secret storage. Send `Authorization: Bearer cap_…` on every MCP request. The dashboard session cookie does not authenticate MCP. Tokens are SHA-256 hashes at rest and revoked immediately by rotation/revocation.
 
 ```ts

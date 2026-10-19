@@ -80,6 +80,7 @@ beforeAll(async () => {
       bindings: {
         DEV_MODE: 'true',
         PAYMENT_MODE: 'demo',
+        BANK_LEGACY_PAYMENT_FIXTURE: 'true',
         PAYPAL_ENVIRONMENT: 'sandbox',
         CAPORA_BASE_URL: base,
         SESSION_SECRET: secret,
@@ -141,6 +142,7 @@ beforeEach(async () => {
     'operator_settings',
     'rate_limits',
     'spending_policies',
+    'bank_accounts',
     'agents',
   ])
     await db.prepare(`DELETE FROM ${table}`).run();

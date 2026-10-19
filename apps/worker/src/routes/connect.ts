@@ -151,5 +151,9 @@ connectRoutes.post('/:id/decision', async (c) => {
   const result = await getSetup(c.env, setup.id);
   if (result.userId !== userId)
     throw new DomainError('SETUP_ALREADY_DECIDED', 'This connection was completed in another account.', 409);
+  if (result.status === 'approved') {
+    const { accountIntent } = await import('../bank/accounts');
+    await accountIntent(c.env, 'agent', result.agentId);
+  }
   return c.json({ status: result.status });
 });

@@ -9,6 +9,8 @@ import { audit } from '../lib/audit';
 import { readArtifact, writeArtifact } from './storage';
 import { getRatingRequest } from './reviews';
 import type { Env } from '../env';
+import { startEscrow, resolveEscrow } from '../bank/escrow';
+import { chainKey } from '../bank/chain';
 
 export interface JobMessage {
   jobId: string;
@@ -131,6 +133,7 @@ export async function executeInvocation(env: Env, invocationId: string) {
         'CAPABILITY_CHANGED',
         'Capability changed before execution. Contact the workspace operator.',
       );
+    await startEscrow(env, claimed.purchaseId, invocationId);
     const result = await invokeProvider(env, capability, invocationId, claimed.input);
     const serialized = JSON.stringify(result);
     const latencyMs = Date.now() - start;
@@ -165,6 +168,12 @@ export async function executeInvocation(env: Env, invocationId: string) {
         })
         .where(eq(capabilities.id, claimed.capabilityId)),
     ]);
+    // Persist provider success before settlement. Delayed release must never repeat execution.
+    try {
+      await resolveEscrow(env, claimed.purchaseId, 'fulfilled', chainKey(serialized));
+    } catch {
+      /* Durable fulfilled projection is reconciled by the bank keeper. */
+    }
     const agent = await db.select().from(agents).where(eq(agents.id, claimed.agentId)).get();
     if (agent)
       await audit(
@@ -175,6 +184,21 @@ export async function executeInvocation(env: Env, invocationId: string) {
         invocationId,
       );
   } catch (error) {
+    const persisted = await db.select().from(invocations).where(eq(invocations.id, invocationId)).get();
+    if (persisted?.status === 'completed') return; // A post-commit audit/release failure cannot turn success into failure.
+    if (
+      error instanceof DomainError &&
+      [
+        'BANK_TRANSACTION_PENDING',
+        'TEST_ETH_REQUIRED',
+        'MANAGED_SIGNER_REQUIRED',
+        'SIGNER_UNAVAILABLE',
+      ].includes(error.code)
+    ) {
+      await db.update(invocations).set({ status: 'queued' }).where(eq(invocations.id, invocationId));
+      await db.update(jobs).set({ status: 'queued' }).where(eq(jobs.invocationId, invocationId));
+      return;
+    }
     const message =
       error instanceof DomainError
         ? `${error.code}: ${error.message}`
@@ -194,6 +218,17 @@ export async function executeInvocation(env: Env, invocationId: string) {
         .set({ failureCount: sql`${capabilities.failureCount}+1` })
         .where(eq(capabilities.id, claimed.capabilityId)),
     ]);
+    try {
+      await resolveEscrow(
+        env,
+        claimed.purchaseId,
+        error instanceof DomainError && ['PROVIDER_FAILURE', 'INVALID_OUTPUT'].includes(error.code)
+          ? 'failed'
+          : 'manual_review',
+      );
+    } catch {
+      /* Keeper reconciles the durable resolution intent. */
+    }
     console.error(
       JSON.stringify({
         event: 'invocation_failed',
@@ -232,9 +267,15 @@ export async function recoverJobs(env: Env) {
     })
     .where(and(eq(invocations.status, 'running'), sql`${invocations.createdAt}<${cutoff}`))
     .returning();
-  for (const inv of stale)
+  for (const inv of stale) {
+    try {
+      await resolveEscrow(env, inv.purchaseId, 'manual_review');
+    } catch {
+      /* Manual outcome cannot be safely refunded automatically. */
+    }
     await drizzle(env.DB)
       .update(jobs)
       .set({ status: 'failed', error: inv.error, completedAt: now })
       .where(eq(jobs.invocationId, inv.id));
+  }
 }
