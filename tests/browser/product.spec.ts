@@ -65,6 +65,7 @@ test('purchased computed tools deliver usable results with approval and queued e
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('/marketplace/document_fingerprint');
+  await expect(page.locator('.detail-provider')).toContainText('Capora Bank');
   await page.getByRole('textbox', { name: 'Invocation arguments' }).fill(JSON.stringify({ text: 'abc' }));
   await page.getByRole('button', { name: 'Get a quote' }).click();
   await page.getByRole('button', { name: 'Purchase capability' }).click();

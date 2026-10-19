@@ -71,6 +71,13 @@
       "when": 1792378068662,
       "tag": "0009_bank_strategies",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1792379000000,
+      "tag": "0010_bank_capability_ownership",
+      "breakpoints": true
     }
   ]
 }

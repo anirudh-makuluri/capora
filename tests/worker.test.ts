@@ -192,6 +192,8 @@ describe('Actual Worker, D1, R2, Queues, and MCP integration', () => {
     const catalog = (await request<Record<string, unknown>[]>('/capabilities')).data;
     for (const metadata of registeredMetadata) {
       expect(catalog.find((item) => item.id === metadata.id)).toMatchObject({
+        providerId: 'provider_capora_bank',
+        provider: 'Capora Bank',
         name: metadata.name,
         priceCents: metadata.priceCents,
         inputSchema: metadata.schema,
@@ -230,6 +232,30 @@ describe('Actual Worker, D1, R2, Queues, and MCP integration', () => {
     } finally {
       await sync();
     }
+  });
+  it('invalidates old quotes when catalog sync transfers a built-in to the Bank', async () => {
+    const db = await mf.getD1Database('DB');
+    await db
+      .prepare(
+        "INSERT INTO providers(id,user_id,name,description,created_at) VALUES('provider_document_fingerprint','user_test','Capora','Legacy first-party provider',?) ON CONFLICT DO NOTHING",
+      )
+      .bind(new Date().toISOString())
+      .run();
+    await db
+      .prepare(
+        "UPDATE capabilities SET provider_id='provider_document_fingerprint' WHERE id='document_fingerprint'",
+      )
+      .run();
+    const oldQuote = await quote('document_fingerprint', { text: 'Quoted before Bank ownership' });
+    for (const statement of catalogStatements('user_test', new Date().toISOString()))
+      await db.prepare(statement).run();
+    expect((await buy(oldQuote.id)).data).toMatchObject({ error: { code: 'QUOTE_STALE' } });
+    expect(
+      await db
+        .prepare("SELECT provider_id FROM capabilities WHERE id='document_fingerprint'")
+        .first('provider_id'),
+    ).toBe('provider_capora_bank');
+    expect(await db.prepare('SELECT COUNT(*) AS n FROM transactions').first('n')).toBe(0);
   });
   it('retires fixture sales while preserving existing paid entitlements and records', async () => {
     const input = { company: 'Legacy purchase' };

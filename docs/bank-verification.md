@@ -4,17 +4,17 @@ Verified locally on October 18, 2026 (America/Phoenix).
 
 ## Passing checks
 
-| Check | Result |
-| --- | --- |
-| `pnpm typecheck` | Pass: Worker, web and tests |
-| `pnpm lint` | Pass |
-| `pnpm bank:build` | Pass: Solidity 0.8.30, generated shared ABIs, no contract size warnings |
-| `pnpm bank:test` | 18 Solidity tests pass, including 256 randomized escrow conservation cases |
-| `pnpm build` | Pass: Vite production build and Wrangler deployment dry-run |
-| `pnpm exec vitest run` | 208 tests pass across 16 suites |
-| `pnpm test:browser` | 31 Chromium tests pass |
-| `pnpm db:generate` | No schema changes after the checked-in migrations/snapshots |
-| `git diff --check` | Pass |
+| Check                       | Result                                                                     |
+| --------------------------- | -------------------------------------------------------------------------- |
+| `pnpm typecheck`            | Pass: Worker, web and tests                                                |
+| `pnpm lint`                 | Pass                                                                       |
+| `pnpm bank:build`           | Pass: Solidity 0.8.30, generated shared ABIs, no contract size warnings    |
+| `pnpm bank:test`            | 18 Solidity tests pass, including 256 randomized escrow conservation cases |
+| `pnpm build`                | Pass: Vite production build and Wrangler deployment dry-run                |
+| `pnpm exec vitest run`      | 219 tests pass across 17 suites                                            |
+| `pnpm exec playwright test` | 31 Chromium tests pass                                                     |
+| `pnpm db:generate`          | No schema changes after the checked-in migrations/snapshots                |
+| `git diff --check`          | Pass                                                                       |
 
 The Solidity suite covers exact-once minting, wallet identity/replay/revocation, escrow release/refund/authority/pause/disputes/rounding, actual token swaps, stale prices, fund share accounting and donation resistance, fee recipients, investor cash-flow adjustment of the trading-loss budget, operating expenses, backed borrowing/partial repayment/collateral return/liquidation/insolvency, and public chit full-cycle/default/bond/security/cancellation behavior.
 
@@ -23,7 +23,7 @@ The Solidity suite covers exact-once minting, wallet identity/replay/revocation,
 `tests/bank-chain.test.ts` deploys the real contracts to a fresh Hardhat EVM on loopback port 8546 with chain ID 84532. Authenticated requests execute through the actual built Cloudflare Worker, D1 database and Queue consumer. It verifies:
 
 1. Two distinct agent wallets; a $20 capture produces exactly 20 cUSD despite repeated requests and signed event replay; unauthenticated provisioning fails.
-2. An actual Document Fingerprint computation is paid through escrow, executes once, delivers the provider's exact net tokens and the treasury's exact fee, without another PayPal capture.
+2. An actual Document Fingerprint computation is paid through escrow, executes once and delivers the full price to the Bank revenue wallet with a zero marketplace fee. A user-created dataset separately delivers its provider's exact net tokens and the treasury's exact fee; choosing the display name “Capora Bank” does not grant a fee exemption. Neither purchase causes another PayPal capture.
 3. Recipient restrictions and owner approval for financial-policy changes.
 4. Fund creation, deposits, shares, actual inventory swaps, token positions, NAV snapshots, unwind and redemption.
 5. Lending liquidity deposits, collateralized borrowing, repayment and collateral return.
@@ -34,6 +34,14 @@ The Solidity suite covers exact-once minting, wallet identity/replay/revocation,
 10. Permissionless on-chain expiry refund reconciled into D1, canonical event replay without duplicates, and real wallet cash-flow indexing.
 
 **PayPal and the planner are explicit isolated test doubles in this suite.** The EVM, contracts, token transfers, vault accounting, escrow, API authentication, D1 writes and Queue execution are real local execution. No hosted chain, live payment or real model-response claim follows from these tests.
+
+## Capability ownership follow-up
+
+The built-in registry now seeds and synchronizes under `provider_capora_bank`. Its provider smart wallet receives 100% of newly quoted built-in purchases after fulfillment. Independently registered providers retain their own wallets and the configured marketplace fee (default 2.5%). The configured platform-fee treasury remains separate from the Bank's capability revenue wallet.
+
+`tests/bank-ownership.test.ts` exercises migration and catalog sync against real isolated D1 databases: existing bootstrap records, fresh listings, repeat application, cross-owner conflicts, changed endpoints, moderation/usage preservation, historical transactions, unresolved escrow deferral, and stale unfunded quotes. A controlled wallet-provisioning test double interleaves ownership migration with escrow creation to verify the atomic guard rejects the losing purchase before funding. Worker API coverage also checks that an ownership change invalidates an earlier quote. Browser coverage checks the displayed Bank provider on the actual capability purchase page.
+
+Migration `0010_bank_capability_ownership.sql` and the updated catalog seed were applied locally. A direct local D1 query confirms every currently registered built-in is assigned to the Bank provider. No remote ownership migration or wallet deployment follows from this local verification.
 
 ## Browser proof
 

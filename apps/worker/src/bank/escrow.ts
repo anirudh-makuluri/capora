@@ -2,7 +2,7 @@ import { encodeFunctionData, type Hex } from 'viem';
 import { PurchaseEscrowAbi, CaporaUSDAbi, ManagedFundAbi } from '@capora/bank/abis';
 import { centsToUnits } from '@capora/bank';
 import { DomainError } from '@capora/types';
-import { configuration, assertChain } from './config';
+import { configuration, assertChain, providerFeeBps } from './config';
 import { ensureAccount } from './accounts';
 import { chainKey, walletTransaction, transaction, requireConfirmed } from './chain';
 import type { Env } from '../env';
@@ -24,20 +24,31 @@ export async function fundPurchase(
   providerId: string,
   amountCents: number,
 ) {
-  const cfg = configuration(env),
-    buyer = await ensureAccount(env, 'agent', agentId),
-    seller = await ensureAccount(env, 'provider', providerId);
+  const cfg = configuration(env);
   const amount = centsToUnits(amountCents),
     now = new Date().toISOString(),
     key = chainKey(`purchase:${purchaseId}`);
   const quote = await env.DB.prepare(
-    'SELECT q.escrow_fee_bps FROM purchases p JOIN quotes q ON q.id=p.quote_id WHERE p.id=?',
+    'SELECT q.escrow_fee_bps,q.capability_version,c.version FROM purchases p JOIN quotes q ON q.id=p.quote_id JOIN capabilities c ON c.id=p.capability_id WHERE p.id=?',
   )
     .bind(purchaseId)
-    .first<{ escrow_fee_bps: number | null }>();
-  const fee = quote?.escrow_fee_bps ?? cfg.feeBps;
+    .first<{ escrow_fee_bps: number | null; capability_version: number; version: number }>();
+  const existing = await env.DB.prepare('SELECT purchase_id FROM bank_escrows WHERE purchase_id=?')
+    .bind(purchaseId)
+    .first();
+  if (!existing && quote && quote.capability_version !== quote.version)
+    throw new DomainError('QUOTE_STALE', 'Capability changed after quoting. Request a new quote.', 409);
+  const buyer = await ensureAccount(env, 'agent', agentId),
+    seller = await ensureAccount(env, 'provider', providerId);
+  const fee = quote?.escrow_fee_bps ?? providerFeeBps(env, providerId);
+  // Serialize the version/owner check with the escrow intent. Catalog migration sees this
+  // unresolved intent and defers ownership; if migration won the race, no funds can be sent.
   await env.DB.prepare(
-    'INSERT INTO bank_escrows(purchase_id,buyer_account_id,seller_account_id,escrow_key,amount_units,fee_bps,fee_units,deadline,state,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(purchase_id) DO NOTHING',
+    `INSERT INTO bank_escrows(purchase_id,buyer_account_id,seller_account_id,escrow_key,amount_units,fee_bps,fee_units,deadline,state,updated_at)
+     SELECT ?,?,?,?,?,?,?,?,?,? WHERE EXISTS
+       (SELECT 1 FROM purchases p JOIN quotes q ON q.id=p.quote_id JOIN capabilities c ON c.id=p.capability_id
+        WHERE p.id=? AND c.version=q.capability_version AND c.provider_id=?)
+     ON CONFLICT(purchase_id) DO NOTHING`,
   )
     .bind(
       purchaseId,
@@ -50,11 +61,15 @@ export async function fundPurchase(
       Math.floor(Date.now() / 1000) + 3600,
       'approved',
       now,
+      purchaseId,
+      providerId,
     )
     .run();
-  const row = (await env.DB.prepare('SELECT * FROM bank_escrows WHERE purchase_id=?')
+  const row = await env.DB.prepare('SELECT * FROM bank_escrows WHERE purchase_id=?')
     .bind(purchaseId)
-    .first<Escrow>())!;
+    .first<Escrow>();
+  if (!row)
+    throw new DomainError('QUOTE_STALE', 'Capability changed after quoting. Request a new quote.', 409);
   if (row.state === 'escrow_funded') return;
   if (Math.floor(Date.now() / 1000) >= row.deadline)
     throw new DomainError('ESCROW_EXPIRED', 'Escrow funding deadline expired. Request a new quote.', 409);

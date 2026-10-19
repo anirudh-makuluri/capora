@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { units, displayUnits, centsToUnits, unitsToCents } from '../packages/bank/src/index';
 import { bankSchemas } from '../apps/worker/src/bank/capabilities';
-import { configuration } from '../apps/worker/src/bank/config';
+import { configuration, providerFeeBps } from '../apps/worker/src/bank/config';
+import { CAPORA_BANK_PROVIDER_ID } from '../packages/config/src/index';
 import type { Env } from '../apps/worker/src/env';
 const address = '0x1111111111111111111111111111111111111111';
 const manifest = {
@@ -24,6 +25,15 @@ const env = {
   DEV_MODE: 'false',
 } as Env;
 describe('financial precision and testnet configuration boundaries', () => {
+  it('exempts only the reserved Bank provider and preserves configured third-party marketplace fees', () => {
+    expect(providerFeeBps(env, CAPORA_BANK_PROVIDER_ID)).toBe(0);
+    expect(providerFeeBps(env, 'provider_user_created')).toBe(250);
+    expect(providerFeeBps({ ...env, BANK_MARKETPLACE_FEE_BPS: '500' }, 'provider_user_created')).toBe(500);
+    expect(providerFeeBps(env, 'Capora Bank')).toBe(250);
+    expect(() =>
+      providerFeeBps({ ...env, BANK_MARKETPLACE_FEE_BPS: '1001' }, 'provider_user_created'),
+    ).toThrow();
+  });
   it('keeps cent and micro-unit values exact across the supported payment range', () => {
     for (const cents of [1, 10, 1999, 2000, 99999, 100000])
       expect(unitsToCents(centsToUnits(cents))).toBe(cents);

@@ -22,13 +22,16 @@ import {
 import { catalogStatements } from '../scripts/seed-data';
 import { chainKey } from '../apps/worker/src/bank/chain';
 import { displayUnits } from '../packages/bank/src/index';
+import { CAPORA_BANK_PROVIDER_ID } from '../packages/config/src/index';
 import type { Purchase, Quote, Invocation } from '../packages/types/src/index';
 let node: ChildProcess,
   mf: Miniflare,
   cookie = '',
   userId = '',
   agentA = '',
-  agentB = '';
+  agentB = '',
+  merchantProvider = '',
+  merchantCapability = '';
 let deployment: Record<string, Address>;
 let captureCalls = 0,
   ordersCreated = 0;
@@ -244,6 +247,31 @@ beforeAll(async () => {
   userId = ((await signup.json()) as { user: { id: string } }).user.id;
   for (const statement of catalogStatements(userId, new Date().toISOString()))
     await db.prepare(statement).run();
+  // A user-chosen display name must not grant the reserved Bank seller's fee exemption.
+  merchantProvider = (
+    await api<{ id: string }>('/providers', {
+      name: 'Capora Bank',
+      description: 'An independently registered dataset seller for integration tests.',
+    })
+  ).id;
+  const dataset = await api<{ endpoint: string }>('/providers/datasets', {
+    data: { answer: 'Actual independently uploaded dataset' },
+  });
+  merchantCapability = (
+    await api<{ id: string }>('/providers/capabilities', {
+      providerId: merchantProvider,
+      name: 'Independent dataset',
+      description: 'A user-created capability with independently owned provider proceeds.',
+      type: 'dataset',
+      category: 'Testing',
+      priceCents: 10,
+      pricingUnit: 'query',
+      inputSchema: { type: 'object', additionalProperties: false },
+      outputSchema: { type: 'object', properties: { answer: { type: 'string' } }, required: ['answer'] },
+      endpoint: dataset.endpoint,
+      expectedLatencyMs: 100,
+    })
+  ).id;
   agentA = (await api<{ id: string }>('/agents', { name: 'Bank buyer' })).id;
   agentB = (await api<{ id: string }>('/agents', { name: 'Bank investor' })).id;
   for (const id of [agentA, agentB])
@@ -314,9 +342,11 @@ describe('Bank vertical slices on a real isolated local EVM; PayPal is an explic
       }),
     ).toBe(20000000n);
   }, 30000);
-  it('buys a real existing fingerprint capability, executes once and releases real net tokens to the seller wallet', async () => {
+  it('pays the full built-in purchase to the Bank revenue wallet exactly once without a marketplace fee', async () => {
     const input = { text: 'Actual Capora Bank escrow test' },
       q = await api<Quote>(`/agents/${agentA}/quotes`, { capability_id: 'document_fingerprint', input });
+    expect(q.provider).toBe('Capora Bank');
+    expect(q.escrowFeeBps).toBe(0);
     const purchase = await api<Purchase>(`/agents/${agentA}/purchases`, { quote_id: q.id });
     expect(purchase.status, JSON.stringify(purchase)).toBe('purchased');
     const a = await api<Invocation>(`/agents/${agentA}/invocations`, { purchase_id: purchase.id, input }),
@@ -327,8 +357,11 @@ describe('Bank vertical slices on a real isolated local EVM; PayPal is an explic
       escrow = await db
         .prepare('SELECT * FROM bank_escrows WHERE purchase_id=?')
         .bind(purchase.id)
-        .first<{ state: string; seller_account_id: string }>();
+        .first<{ state: string; seller_account_id: string; fee_bps: number; fee_units: string }>();
     expect(escrow?.state).toBe('released');
+    expect(escrow?.seller_account_id).toBe(`provider:${CAPORA_BANK_PROVIDER_ID}`);
+    expect(escrow?.fee_bps).toBe(0);
+    expect(escrow?.fee_units).toBe('0');
     const seller = await db
       .prepare('SELECT address FROM bank_accounts WHERE id=?')
       .bind(escrow!.seller_account_id)
@@ -340,7 +373,7 @@ describe('Bank vertical slices on a real isolated local EVM; PayPal is an explic
         functionName: 'balanceOf',
         args: [seller!.address],
       }),
-    ).toBe(97500n);
+    ).toBe(100000n);
     expect(
       await chain.readContract({
         address: deployment.token,
@@ -348,7 +381,44 @@ describe('Bank vertical slices on a real isolated local EVM; PayPal is an explic
         functionName: 'balanceOf',
         args: [deployment.treasury],
       }),
-    ).toBe(2500n);
+    ).toBe(0n);
+    expect(captureCalls).toBe(1);
+  }, 30000);
+  it('holds a user-created purchase in escrow and pays its provider net proceeds plus the treasury fee', async () => {
+    const input = {},
+      q = await api<Quote>(`/agents/${agentA}/quotes`, { capability_id: merchantCapability, input });
+    expect(q.escrowFeeBps).toBe(250);
+    const p = await api<Purchase>(`/agents/${agentA}/purchases`, { quote_id: q.id });
+    expect(p.status).toBe('purchased');
+    const db = await mf.getD1Database('DB'),
+      seller = (await db
+        .prepare('SELECT address FROM bank_accounts WHERE provider_id=?')
+        .bind(merchantProvider)
+        .first<{ address: Address }>())!;
+    const balance = (address: Address) =>
+      chain.readContract({
+        address: deployment.token,
+        abi: CaporaUSDAbi,
+        functionName: 'balanceOf',
+        args: [address],
+      });
+    expect(await balance(seller.address)).toBe(0n);
+    expect(await balance(deployment.escrow)).toBe(100000n);
+    const first = await api<Invocation>(`/agents/${agentA}/invocations`, { purchase_id: p.id, input });
+    expect(first.status).toBe('completed');
+    expect(first.result).toEqual({ answer: 'Actual independently uploaded dataset' });
+    expect((await api<Invocation>(`/agents/${agentA}/invocations`, { purchase_id: p.id, input })).id).toBe(
+      first.id,
+    );
+    expect(await balance(seller.address)).toBe(97500n);
+    expect(await balance(deployment.treasury)).toBe(2500n);
+    expect(await balance(deployment.escrow)).toBe(0n);
+    const bank = (await db
+      .prepare('SELECT address FROM bank_accounts WHERE provider_id=?')
+      .bind(CAPORA_BANK_PROVIDER_ID)
+      .first<{ address: Address }>())!;
+    expect(await balance(bank.address)).toBe(100000n);
+    expect(seller.address.toLowerCase()).not.toBe(bank.address.toLowerCase());
     expect(captureCalls).toBe(1);
   }, 30000);
   it('enforces recipient limits and routes owner policy changes through approval', async () => {
@@ -529,13 +599,13 @@ describe('Bank vertical slices on a real isolated local EVM; PayPal is an explic
   }, 60000);
   it('composes earned provider income, a vault deposit and another external capability purchase', async () => {
     for (let i = 0; i < 2; i++) {
-      const input = { text: `Second income ${i}` },
-        q = await api<Quote>(`/agents/${agentA}/quotes`, { capability_id: 'document_fingerprint', input });
+      const input = {},
+        q = await api<Quote>(`/agents/${agentA}/quotes`, { capability_id: merchantCapability, input });
       const p = await api<Purchase>(`/agents/${agentA}/purchases`, { quote_id: q.id });
       await api(`/agents/${agentA}/invocations`, { purchase_id: p.id, input });
     }
     await action(agentB, 'claim_provider_earnings', {
-      provider_id: 'provider_document_fingerprint',
+      provider_id: merchantProvider,
       amount: '0.2925',
     });
     const db = await mf.getD1Database('DB'),
@@ -613,9 +683,10 @@ describe('Bank vertical slices on a real isolated local EVM; PayPal is an explic
     const db = await mf.getD1Database('DB');
     await db
       .prepare(
-        `INSERT INTO capabilities(id,provider_id,name,description,type,category,price_cents,currency,pricing_unit,input_schema,output_schema,endpoint,expected_latency_ms,tags,created_at) VALUES('bank_test_failure','provider_document_fingerprint','Test provider failure','Isolated existing protected demo provider','api','Testing',10,'USD','query',?,?,'demo://datapulse_headcount',100,'[]',?)`,
+        `INSERT INTO capabilities(id,provider_id,name,description,type,category,price_cents,currency,pricing_unit,input_schema,output_schema,endpoint,expected_latency_ms,tags,created_at) VALUES('bank_test_failure',?,'Test provider failure','Isolated existing protected demo provider','api','Testing',10,'USD','query',?,?,'demo://datapulse_headcount',100,'[]',?)`,
       )
       .bind(
+        merchantProvider,
         JSON.stringify({
           type: 'object',
           properties: { company: { type: 'string' }, demoFailure: { type: 'boolean' } },
