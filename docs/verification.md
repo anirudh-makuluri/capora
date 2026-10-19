@@ -1,5 +1,9 @@
 # Verification record
 
+## Capora Bank — 2026-10-18
+
+See the [Bank verification and handoff](bank-verification.md) for passing contract/fuzz, Worker/local-EVM and browser checks, with explicit external deployment and credential boundaries.
+
 ## Riot recent matches — 2026-10-17
 
 - Confirmed `RIOT_API_KEY` is populated in root `.env` and Worker `.dev.vars` without showing either value. Added it to the server-only setup allowlist and regenerated Worker binding types. README and `.env.example` capability details remain unchanged.

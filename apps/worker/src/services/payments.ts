@@ -126,7 +126,7 @@ export class PayPalSandbox {
       throw new PaymentError('PayPal returned an unreadable response. Reconcile this purchase.', true);
     }
   }
-  async createOrder(purchaseId: string, amountCents: number, vaultId: string | null): Promise<PayPalOrder> {
+  async createOrder(purchaseId: string, amountCents: number, vaultId: string | null, topup = false): Promise<PayPalOrder> {
     const result = await this.request(
       '/v2/checkout/orders',
       'POST',
@@ -135,7 +135,7 @@ export class PayPalSandbox {
         purchase_units: [
           {
             reference_id: purchaseId,
-            description: 'Capora machine capability — sandbox',
+            description: topup ? 'Capora demo cUSD top-up — PayPal Sandbox only' : 'Capora machine capability — sandbox',
             amount: { currency_code: 'USD', value: (amountCents / 100).toFixed(2) },
           },
         ],
@@ -147,8 +147,8 @@ export class PayPalSandbox {
                   brand_name: 'Capora',
                   shipping_preference: 'NO_SHIPPING',
                   user_action: 'PAY_NOW',
-                  return_url: `${this.env.CAPORA_BASE_URL}/transactions?payment=${purchaseId}`,
-                  cancel_url: `${this.env.CAPORA_BASE_URL}/transactions?cancel=${purchaseId}`,
+                  return_url: `${this.env.CAPORA_BASE_URL}/${topup ? 'bank' : 'transactions'}?payment=${purchaseId}`,
+                  cancel_url: `${this.env.CAPORA_BASE_URL}/${topup ? 'bank' : 'transactions'}?cancel=${purchaseId}`,
                 },
               },
         },
@@ -230,11 +230,14 @@ export function receiptFromOrder(
   amountCents: number,
 ): PaymentReceipt {
   const unit = order.purchase_units?.find((u) => u.reference_id === purchaseId);
-  const capture = unit?.payments?.captures?.find((c) => c.status === 'COMPLETED');
+  const captures = unit?.payments?.captures?.filter((c) => c.status === 'COMPLETED') ?? [];
+  const capture = captures[0];
   if (capture) {
     if (
+      order.status !== 'COMPLETED' || order.purchase_units?.length !== 1 || captures.length !== 1 ||
       capture.amount.currency_code !== 'USD' ||
-      Math.round(Number(capture.amount.value) * 100) !== amountCents
+      !/^\d+\.\d{2}$/.test(capture.amount.value) ||
+      BigInt(capture.amount.value.replace('.', '')) !== BigInt(amountCents)
     )
       throw new PaymentError(
         'Payment amount does not match the quote. Manual reconciliation is required.',

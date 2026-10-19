@@ -12,6 +12,8 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "paths": {
+      "@capora/bank": ["./packages/bank/src/index.ts"],
+      "@capora/bank/abis": ["./packages/bank/src/abis.ts"],
       "@capora/types": ["./packages/types/src/index.ts"],
       "@capora/db": ["./packages/db/src/index.ts"],
       "@capora/provider-sdk": ["./packages/provider-sdk/src/index.ts"],

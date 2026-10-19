@@ -468,6 +468,7 @@ kbd,
   box-shadow: 8px 8px 0 var(--rust);
 }
 .capability-card h3 {
+  overflow-wrap: anywhere;
   font-size: 18px;
   font-weight: 700;
   line-height: 1.25;
@@ -520,6 +521,7 @@ kbd,
   color: var(--teal-strong);
 }
 .cap-price-row {
+  flex-wrap: wrap;
   border-top: 2px dashed var(--border);
   background: #f7ecd7;
 }

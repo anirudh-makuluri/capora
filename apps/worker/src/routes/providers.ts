@@ -27,6 +27,8 @@ providerRoutes.post('/', async (c) => {
     .parse(await c.req.json());
   const row = { id: id('provider'), userId: c.get('userId'), ...body, createdAt: new Date().toISOString() };
   await drizzle(c.env.DB).insert(providers).values(row);
+  const { accountIntent } = await import('../bank/accounts');
+  await accountIntent(c.env, 'provider', row.id);
   return c.json(row, 201);
 });
 providerRoutes.get('/capabilities', async (c) => {

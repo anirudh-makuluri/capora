@@ -121,8 +121,8 @@ export function FeaturedStalls() {
                 </p>
                 <div className="ag-stall-bottom">
                   <div className="ag-stall-price">
-                    {capability ? money(capability.priceCents) : '—'}
-                    <small>{capability ? `sandbox / ${capability.pricingUnit}` : 'No quote available'}</small>
+                    {capability ? <>{(capability.priceCents / 100).toFixed(2)}<span className="ag-price-currency"> cUSD</span></> : '—'}
+                    <small>{capability ? `testnet / ${capability.pricingUnit}` : 'No quote available'}</small>
                   </div>
                   {capability ? (
                     <StallDetails capability={capability} />

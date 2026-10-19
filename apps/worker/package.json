@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "1.7.7",
+    "@capora/bank": "workspace:*",
     "@capora/config": "workspace:*",
     "@capora/db": "workspace:*",
     "@capora/mcp": "workspace:*",
@@ -19,6 +20,7 @@
     "better-auth": "1.7.7",
     "drizzle-orm": "latest",
     "hono": "latest",
+    "viem": "2.57.7",
     "zod": "latest"
   },
   "devDependencies": {

@@ -42,12 +42,24 @@ async function checkDeployment() {
     '/api/admin/provider-hosts',
     '/api/admin/capabilities',
     '/api/admin/providers',
+    '/api/admin/marketplace-fee',
+    '/api/bank',
     '/mcp',
   ]) {
     const response = await get(path);
     assert.equal(response.status, 401, `${path} must require authentication.`);
     assert.match(response.headers.get('content-type') ?? '', /application\/json/);
   }
+  const webhook = await fetch(new URL('/api/bank/paypal/webhook', base), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: '{}',
+    redirect: 'manual',
+    signal: AbortSignal.timeout(10_000),
+  });
+  assert.equal(webhook.status, 401, 'Unsigned Bank webhook must be rejected without forwarding to PayPal.');
+  const rejected = (await webhook.json()) as { error?: { code?: string } };
+  assert.equal(rejected.error?.code, 'INVALID_WEBHOOK_SIGNATURE');
   const page = await get('/marketplace');
   assert.equal(page.status, 200, 'SPA deep link must load.');
   assert.match(page.headers.get('content-type') ?? '', /text\/html/);

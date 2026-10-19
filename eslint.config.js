@@ -4,6 +4,8 @@ export default tseslint.config(
   {
     ignores: [
       '**/dist/**',
+      'packages/bank/artifacts/**',
+      'packages/bank/cache/**',
       '**/node_modules/**',
       '**/.wrangler/**',
       '.local/**',

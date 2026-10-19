@@ -8,6 +8,7 @@ import { unseal } from '../lib/crypto';
 import { demoProviders } from '../providers/demo';
 import { readArtifact } from './storage';
 import type { Env } from '../env';
+import { executeBank } from '../bank/actions';
 import { getProviderHostSettings } from './provider-hosts';
 import { invokeBuiltin } from '../providers/live';
 import { getRegisteredCapability } from '../providers/capabilities/registry';
@@ -70,6 +71,12 @@ export async function invokeProvider(
   input: Record<string, unknown>,
 ): Promise<unknown> {
   validatePayload(capability.inputSchema, input);
+  if (capability.endpoint.startsWith('bank://')) {
+    if (capability.providerId !== 'provider_capora_bank') throw new DomainError('BANK_PROVIDER_REQUIRED','Bank operations are first-party only.',403);
+    const invocation = await env.DB.prepare('SELECT agent_id FROM invocations WHERE id=?').bind(invocationId).first<{agent_id:string}>();
+    if (!invocation) throw new DomainError('UNAUTHORIZED','Authorized invocation required.',403);
+    return executeBank(env,invocation.agent_id,invocationId,capability.endpoint,input);
+  }
   await validateProviderEndpoint(capability.endpoint, env, capability.type === 'dataset');
   if (capability.endpoint.startsWith('builtin://')) {
     const output = await invokeBuiltin(capability.endpoint, input, env);

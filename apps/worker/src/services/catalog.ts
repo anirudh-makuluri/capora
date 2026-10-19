@@ -44,7 +44,7 @@ export function publicCapability(
     type: row.type,
     category: row.category,
     priceCents: row.priceCents,
-    currency: row.currency,
+    currency: 'cUSD',
     pricingUnit: row.pricingUnit,
     inputSchema: row.inputSchema,
     outputSchema: row.outputSchema,

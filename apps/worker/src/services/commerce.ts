@@ -1,22 +1,17 @@
-import {
-  drizzle,
-  agents,
-  spendingPolicies,
-  quotes,
-  purchases,
-  approvals,
-  transactions,
-  users,
-} from '@capora/db';
+import { drizzle, agents, spendingPolicies, quotes, purchases, approvals, transactions } from '@capora/db';
 import { eq, and, sql } from 'drizzle-orm';
 import { DomainError, type Budget, type Quote, type Purchase, type JsonInput } from '@capora/types';
 import { QUOTE_TTL_MS, RESERVED_STATUSES } from '@capora/config';
 import { validatePayload } from '@capora/provider-sdk';
-import { canonical, hash, id, unseal } from '../lib/crypto';
+import { canonical, hash, id } from '../lib/crypto';
 import { audit } from '../lib/audit';
 import { getCapabilityRecord, getCapability } from './catalog';
 import { evaluatePolicy } from './policy';
-import { PaymentError, PayPalSandbox, receiptFromOrder } from './payments';
+import { PaymentError, PayPalSandbox } from './payments';
+import { fundPurchase } from '../bank/escrow';
+import { bankOperation, bankInput, humanOperations } from '../bank/capabilities';
+import { actionCost, validateBankQuoteDeadline } from '../bank/actions';
+import { providerFeeBps } from './marketplace-fees';
 import type { Env } from '../env';
 import { validateBuiltinInput } from '../providers/live';
 
@@ -51,14 +46,24 @@ export async function createQuote(
   const capability = await getCapabilityRecord(env, capabilityId);
   validatePayload(capability.inputSchema, input);
   if (capability.endpoint.startsWith('builtin://')) validateBuiltinInput(capability.endpoint, input);
+  const bank = capability.endpoint.startsWith('bank://');
+  const operation = bank ? bankOperation(capability.endpoint) : null;
+  if (operation) await validateBankQuoteDeadline(env, input);
+  const priceCents = operation
+    ? await actionCost(env, agentId, operation, bankInput(operation, input))
+    : capability.priceCents;
   const budget = await getBudget(env, agentId);
   const now = new Date();
   const row = {
     id: id('quote'),
     agentId,
     capabilityId,
-    priceCents: capability.priceCents,
-    currency: 'USD' as const,
+    priceCents,
+    escrowFeeBps:
+      !bank && priceCents > 0 && (env.BANK_ENABLED === 'true' || env.BANK_LEGACY_PAYMENT_FIXTURE !== 'true')
+        ? await providerFeeBps(env, capability.providerId)
+        : null,
+    currency: 'cUSD' as const,
     input,
     inputHash: await hash(canonical(input)),
     capabilityVersion: capability.version,
@@ -79,7 +84,10 @@ export async function createQuote(
     ...row,
     provider: publicCap.provider,
     expectedLatencyMs: capability.expectedLatencyMs,
-    approvalRequired: !budget.autonomousEnabled || row.priceCents > budget.autoApproveCents,
+    approvalRequired:
+      (operation !== null && humanOperations.has(operation)) ||
+      !budget.autonomousEnabled ||
+      row.priceCents > budget.autoApproveCents,
   };
 }
 async function agentRecord(env: Env, agentId: string) {
@@ -98,7 +106,12 @@ export async function getPurchase(env: Env, purchaseId: string, agentId: string)
     .where(and(eq(purchases.id, purchaseId), eq(purchases.agentId, agentId)))
     .get();
   if (!row) throw new DomainError('PURCHASE_REQUIRED', 'Purchase not found for this agent.', 404);
-  return row;
+  const settlement = await env.DB.prepare(
+    'SELECT state,amount_units,fee_units,funding_tx,resolution_tx FROM bank_escrows WHERE purchase_id=?',
+  )
+    .bind(purchaseId)
+    .first();
+  return { ...row, ...(settlement ? { settlement } : {}) };
 }
 export async function purchaseQuote(env: Env, agentId: string, quoteId: string): Promise<Purchase> {
   const agent = await agentRecord(env, agentId);
@@ -117,20 +130,37 @@ export async function purchaseQuote(env: Env, agentId: string, quoteId: string):
   if (capability.version !== quote.capabilityVersion)
     throw new DomainError('QUOTE_STALE', 'Capability changed after quoting. Request a new quote.');
   const budget = await getBudget(env, agentId);
-  const decision = evaluatePolicy(budget, quote.priceCents, budget.spentTodayCents + budget.reservedCents);
+  const bankOp = capability.endpoint.startsWith('bank://') ? bankOperation(capability.endpoint) : null;
+  if (bankOp) await actionCost(env, agentId, bankOp, bankInput(bankOp, quote.input));
+  const forceHuman = bankOp !== null && humanOperations.has(bankOp);
+  const decision =
+    quote.priceCents === 0
+      ? 'approved'
+      : evaluatePolicy(budget, quote.priceCents, budget.spentTodayCents + budget.reservedCents);
   const purchaseId = id('purchase');
   const now = new Date().toISOString();
   // A single SQLite statement serializes reservation and policy checks across concurrent requests.
   await env.DB.prepare(
     `INSERT INTO purchases (id, quote_id, agent_id, capability_id, amount_cents, status, payment_mode, reason, budget_day, created_at, updated_at)
     SELECT ?, q.id, q.agent_id, q.capability_id, q.price_cents,
-      CASE WHEN p.autonomous_enabled = 1 AND q.price_cents <= p.auto_approve_cents THEN 'approved' ELSE 'pending_approval' END,
+      CASE WHEN ? = 0 AND p.autonomous_enabled = 1 AND q.price_cents <= p.auto_approve_cents THEN 'approved' ELSE 'pending_approval' END,
       ?, q.reason, ?, ?, ? FROM quotes q JOIN spending_policies p ON p.agent_id=q.agent_id JOIN agents a ON a.id=q.agent_id JOIN capabilities c ON c.id=q.capability_id
     WHERE q.id=? AND q.agent_id=? AND a.status='active' AND q.expires_at>? AND c.enabled=1 AND c.removed_at IS NULL AND c.version=q.capability_version AND q.price_cents<=p.max_transaction_cents
     AND q.price_cents + COALESCE((SELECT SUM(amount_cents) FROM purchases WHERE agent_id=q.agent_id AND budget_day=? AND status IN ('pending_approval','approved','payment_pending','purchased')),0)<=p.daily_budget_cents
     ON CONFLICT(quote_id) DO NOTHING`,
   )
-    .bind(purchaseId, env.PAYMENT_MODE, budget.day, now, now, quote.id, agentId, now, budget.day)
+    .bind(
+      purchaseId,
+      forceHuman ? 1 : 0,
+      env.PAYMENT_MODE,
+      budget.day,
+      now,
+      now,
+      quote.id,
+      agentId,
+      now,
+      budget.day,
+    )
     .run();
   const purchase = await db.select().from(purchases).where(eq(purchases.quoteId, quote.id)).get();
   if (!purchase)
@@ -138,6 +168,19 @@ export async function purchaseQuote(env: Env, agentId: string, quoteId: string):
       'POLICY_CHANGED',
       'Quote, capability, or available budget changed. Request a new quote.',
     );
+  if (bankOp)
+    await env.DB.prepare(
+      'INSERT INTO bank_policy_decisions(purchase_id,agent_id,action,amount_units,decision,created_at) VALUES(?,?,?,?,?,?) ON CONFLICT(purchase_id) DO NOTHING',
+    )
+      .bind(
+        purchase.id,
+        agentId,
+        bankOp,
+        (BigInt(quote.priceCents) * 10000n).toString(),
+        purchase.status,
+        now,
+      )
+      .run();
   if (purchase.status === 'pending_approval') {
     await db
       .insert(approvals)
@@ -194,11 +237,49 @@ export async function settlePayment(env: Env, purchaseId: string, agentId: strin
       );
     const agent = await agentRecord(env, agentId);
     const capability = await getCapabilityRecord(env, purchase.capabilityId);
+    if (purchase.amountCents > 0) {
+      const currentBudget = await getBudget(env, agentId);
+      const decision = evaluatePolicy(
+        currentBudget,
+        purchase.amountCents,
+        Math.max(0, currentBudget.spentTodayCents + currentBudget.reservedCents - purchase.amountCents),
+      );
+      const approved = await db.select().from(approvals).where(eq(approvals.purchaseId, purchaseId)).get();
+      if (decision === 'pending_approval' && approved?.status !== 'approved') {
+        const now = new Date().toISOString();
+        await db.batch([
+          db
+            .update(purchases)
+            .set({ status: 'pending_approval', updatedAt: now })
+            .where(eq(purchases.id, purchaseId)),
+          db
+            .insert(approvals)
+            .values({
+              id: id('approval'),
+              purchaseId,
+              userId: agent.userId,
+              status: 'pending',
+              createdAt: now,
+            })
+            .onConflictDoNothing(),
+        ]);
+        return getPurchase(env, purchaseId, agentId);
+      }
+    }
     await db
       .update(purchases)
       .set({ status: 'payment_pending', updatedAt: new Date().toISOString() })
       .where(eq(purchases.id, purchaseId));
-    if (env.PAYMENT_MODE === 'demo') {
+    if (capability.endpoint.startsWith('bank://') || purchase.amountCents === 0) {
+      await recordPayment(env, purchase, capability.providerId, 'purchased');
+    } else if (
+      env.BANK_ENABLED === 'true' ||
+      env.BANK_LEGACY_PAYMENT_FIXTURE !== 'true' ||
+      env.PAYMENT_MODE === 'sandbox'
+    ) {
+      await fundPurchase(env, purchase.id, agentId, capability.providerId, purchase.amountCents);
+      await recordPayment(env, purchase, capability.providerId, 'purchased');
+    } else if (env.PAYMENT_MODE === 'demo') {
       if (
         env.DEV_MODE !== 'true' ||
         !['localhost', '127.0.0.1'].includes(new URL(env.CAPORA_BASE_URL).hostname)
@@ -210,46 +291,22 @@ export async function settlePayment(env: Env, purchaseId: string, agentId: strin
         );
       purchase = { ...purchase, orderId: `DEMO-${purchase.id}`, captureId: `DEMO-CAPTURE-${purchase.id}` };
       await recordPayment(env, purchase, capability.providerId, 'purchased');
-    } else if (env.PAYMENT_MODE === 'sandbox') {
-      const paypal = new PayPalSandbox(env);
-      const user = await db.select().from(users).where(eq(users.id, agent.userId)).get();
-      const vaultId = user?.vaultEncrypted ? await unseal(user.vaultEncrypted, env.ENCRYPTION_KEY) : null;
-      if (!purchase.orderId && Date.now() - Date.parse(purchase.createdAt) > 5 * 60 * 60 * 1000)
-        throw new PaymentError(
-          'An older unconfirmed create request needs manual PayPal reconciliation. Automatic replay is disabled.',
-          true,
-        );
-      let order = purchase.orderId
-        ? await paypal.getOrder(purchase.orderId)
-        : await paypal.createOrder(purchase.id, purchase.amountCents, vaultId);
-      await db.update(purchases).set({ orderId: order.id }).where(eq(purchases.id, purchase.id));
-      if (order.status === 'APPROVED') order = await paypal.captureOrder(order.id, purchase.id);
-      const receipt = receiptFromOrder(order, purchase.id, purchase.amountCents);
-      purchase = {
-        ...purchase,
-        orderId: receipt.orderId,
-        captureId: receipt.captureId,
-        approvalUrl: receipt.approvalUrl,
-      };
-      await recordPayment(
-        env,
-        purchase,
-        capability.providerId,
-        receipt.status === 'completed' ? 'purchased' : 'payment_pending',
-      );
     } else throw new DomainError('CONFIGURATION_REQUIRED', 'Select sandbox or local demo payments.', 503);
     const result = await getPurchase(env, purchaseId, agentId);
     await audit(
       env,
       agent.userId,
       result.status === 'purchased' ? 'payment_completed' : 'payment_pending',
-      `${capability.name}: ${result.status === 'purchased' ? 'payment completed' : 'waiting for PayPal'}`,
+      `${capability.name}: ${result.status === 'purchased' ? 'payment completed' : 'waiting for chain confirmation'}`,
       purchaseId,
     );
     return result;
   } catch (error) {
     const current = await getPurchase(env, purchaseId, agentId);
     const uncertain =
+      env.BANK_ENABLED === 'true' ||
+      env.BANK_LEGACY_PAYMENT_FIXTURE !== 'true' ||
+      env.PAYMENT_MODE === 'sandbox' ||
       current.orderId !== null ||
       (error instanceof PaymentError && error.uncertain) ||
       !(error instanceof DomainError);
@@ -279,6 +336,17 @@ async function recordPayment(
 ) {
   const db = drizzle(env.DB);
   const now = new Date().toISOString();
+  const escrow = await env.DB.prepare('SELECT state FROM bank_escrows WHERE purchase_id=?')
+    .bind(purchase.id)
+    .first();
+  const capability = await getCapabilityRecord(env, purchase.capabilityId, false);
+  const transactionStatus = capability.endpoint.startsWith('bank://')
+    ? 'bank_action'
+    : escrow
+      ? 'escrow_funded'
+      : status === 'purchased'
+        ? 'completed'
+        : 'pending';
   await db.batch([
     db
       .update(purchases)
@@ -298,7 +366,8 @@ async function recordPayment(
         purchaseId: purchase.id,
         providerId,
         amountCents: purchase.amountCents,
-        status: status === 'purchased' ? 'completed' : 'pending',
+        status: transactionStatus,
+        type: escrow ? 'cusd_escrow' : capability.endpoint.startsWith('bank://') ? 'bank_action' : 'capture',
         orderId: purchase.orderId,
         captureId: purchase.captureId,
         createdAt: now,
@@ -307,7 +376,7 @@ async function recordPayment(
       .onConflictDoUpdate({
         target: transactions.purchaseId,
         set: {
-          status: status === 'purchased' ? 'completed' : 'pending',
+          status: transactionStatus,
           captureId: purchase.captureId,
           updatedAt: now,
         },
@@ -333,7 +402,8 @@ export async function resolveApproval(env: Env, userId: string, purchaseId: stri
     )
       .bind(row.agent.id, row.purchase.budgetDay)
       .first<{ total: number }>();
-    evaluatePolicy(budget, row.purchase.amountCents, (committed?.total ?? 0) - row.purchase.amountCents);
+    if (row.purchase.amountCents > 0)
+      evaluatePolicy(budget, row.purchase.amountCents, (committed?.total ?? 0) - row.purchase.amountCents);
   }
   // Atomic conditional update prevents approve/reject races; reservations already exist.
   const now = new Date().toISOString();
@@ -358,6 +428,9 @@ export async function resolveApproval(env: Env, userId: string, purchaseId: stri
       'The capability or current spending policy no longer permits this purchase.',
     );
   if (changed) {
+    await env.DB.prepare('UPDATE bank_policy_decisions SET decision=?,authorized_by=? WHERE purchase_id=?')
+      .bind(approve ? 'approved' : 'rejected', userId, purchaseId)
+      .run();
     await db
       .update(approvals)
       .set({ status: approve ? 'approved' : 'rejected', resolvedAt: now })
@@ -388,10 +461,25 @@ export async function cancelPurchase(env: Env, purchaseId: string, agentId: stri
           'Reconcile this PayPal order before cancelling.',
           409,
         );
-    } else if (purchase.status === 'payment_pending' && purchase.error)
+    } else if (
+      purchase.status === 'payment_pending' &&
+      purchase.error &&
+      env.BANK_LEGACY_PAYMENT_FIXTURE === 'true'
+    )
       throw new DomainError(
         'PAYMENT_RECONCILIATION_REQUIRED',
         'Confirm the payment outcome before releasing the reservation.',
+        409,
+      );
+    const escrowIntent = await env.DB.prepare(
+      "SELECT id FROM bank_transactions WHERE id LIKE ? AND state IN ('submitting','pending','confirmed','manual_review')",
+    )
+      .bind(`escrow:${purchaseId}:%`)
+      .first();
+    if (escrowIntent)
+      throw new DomainError(
+        'PAYMENT_RECONCILIATION_REQUIRED',
+        'A chain funding intent already exists. Reconcile or refund it before releasing the reservation.',
         409,
       );
     const now = new Date().toISOString();

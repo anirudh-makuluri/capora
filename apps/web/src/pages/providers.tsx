@@ -51,13 +51,9 @@ export function Providers() {
       <div className="stats-grid transaction-stats">
         <Stat
           icon={<DollarSign size={18} />}
-          label="Completed revenue"
+          label="Confirmed gross sales"
           value={money(revenue)}
-          note={
-            dashboard?.paymentMode === 'demo'
-              ? 'Simulated revenue · not a payout'
-              : 'Sandbox captures · not a payout'
-          }
+          note="cUSD receipts, fees and net earnings in Capora Bank"
         />
         <Stat
           icon={<Blocks size={18} />}

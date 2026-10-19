@@ -1,0 +1,187 @@
+.bank-testnet {
+  padding: 20px 24px;
+  border: 1px solid var(--border);
+  border-left: 4px solid #8f4c36;
+  background: var(--surface, #fffdf7);
+  margin-bottom: 24px;
+}
+.bank-testnet strong {
+  margin-left: 14px;
+}
+.bank-testnet p {
+  margin: 12px 0 0;
+}
+.bank-toolbar {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  justify-content: space-between;
+  margin: 22px 0;
+}
+.bank-toolbar .field {
+  width: min(100%, 340px);
+}
+.bank-tabs {
+  display: flex;
+  gap: 6px;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  margin: 20px 0 28px;
+}
+.bank-tabs button {
+  background: transparent;
+  border: 0;
+  padding: 14px 16px;
+  white-space: nowrap;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+}
+.bank-tabs button.active {
+  border-bottom: 3px solid #8f4c36;
+  font-weight: 700;
+}
+.bank-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: 20px;
+}
+.bank-card,
+.bank-section,
+.bank-notice {
+  padding: 24px;
+  margin-bottom: 24px;
+  min-width: 0;
+}
+.bank-card h2 {
+  font-size: 20px;
+  margin: 16px 0;
+}
+.bank-balance {
+  font-size: 32px;
+  margin: 12px 0;
+  font-weight: 700;
+}
+.bank-balance small {
+  font-size: 16px;
+}
+.bank-address {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0;
+}
+.bank-address code {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.bank-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  align-items: end;
+  margin: 20px 0;
+}
+.bank-form > .field {
+  flex: 1 1 240px;
+  max-width: 600px;
+}
+.bank-form > button {
+  align-self: end;
+}
+.bank-form > .error-notice {
+  flex-basis: 100%;
+}
+.bank-receipt {
+  padding: 20px 0;
+  border-top: 1px solid var(--border);
+  overflow-wrap: anywhere;
+}
+.bank-receipt > .button,
+.bank-receipt > a {
+  margin: 8px 12px 8px 0;
+}
+.bank-action {
+  border-top: 4px solid #8f4c36;
+}
+.bank-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: 14px;
+}
+.bank-metrics > div {
+  min-width: 0;
+}
+.bank-metrics dt {
+  font-size: 12px;
+  color: #53606a;
+}
+.bank-metrics dd {
+  margin: 4px 0;
+  overflow-wrap: anywhere;
+}
+.bank-section summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 10px 0;
+}
+.bank-section .action-row {
+  flex-wrap: wrap;
+  margin: 20px 0;
+}
+.bank-section table {
+  width: 100%;
+  text-align: left;
+  border-collapse: collapse;
+}
+.bank-section td,
+.bank-section th {
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.bank-section .code-block {
+  max-width: 100%;
+  overflow: auto;
+}
+.bank-chart > div {
+  height: 24px;
+  display: flex;
+  background: #8f4c36;
+}
+.bank-chart > div > span:first-child {
+  background: #38604a;
+}
+.bank-chart {
+  margin: 20px 0;
+}
+.bank-section input,
+.bank-section textarea,
+.bank-section select,
+.bank-toolbar select {
+  width: 100%;
+}
+@media (max-width: 640px) {
+  .bank-toolbar {
+    display: block;
+  }
+  .bank-testnet strong {
+    display: block;
+    margin: 12px 0 0;
+  }
+  .bank-form {
+    display: block;
+  }
+  .bank-form > .field {
+    margin-bottom: 16px;
+  }
+  .bank-card,
+  .bank-section {
+    padding: 18px;
+  }
+  .bank-tabs button {
+    padding: 12px;
+  }
+  .bank-balance {
+    font-size: 28px;
+  }
+}

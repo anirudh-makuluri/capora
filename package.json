@@ -8,10 +8,18 @@
     "node": ">=22.12.0"
   },
   "scripts": {
+    "bank:build": "pnpm --filter @capora/bank build",
+    "bank:test": "pnpm --filter @capora/bank test",
+    "bank:node": "pnpm --filter @capora/bank node",
+    "bank:deploy:local": "pnpm --filter @capora/bank deploy:local",
+    "bank:configure:local": "tsx scripts/bank-local-config.ts",
+    "bank:deploy:sepolia": "pnpm --filter @capora/bank deploy:sepolia",
+    "bank:configure:privy": "tsx scripts/bank-privy-setup.ts",
+    "bank:price": "tsx scripts/bank-price.ts",
     "dev": "concurrently -k -n worker,web \"pnpm --filter @capora/worker dev\" \"pnpm --filter @capora/web dev\"",
     "build": "pnpm --filter @capora/web build && pnpm --filter @capora/worker build",
     "typecheck": "tsc --noEmit -p apps/worker && tsc --noEmit -p apps/web && tsc --noEmit -p tests",
-    "test": "pnpm build && vitest run",
+    "test": "pnpm bank:build && pnpm bank:test && pnpm build && vitest run",
     "test:e2e": "tsx scripts/e2e.ts",
     "test:browser": "pnpm build && playwright test",
     "demo": "tsx scripts/demo.ts",
@@ -41,9 +49,11 @@
     "eslint": "latest",
     "miniflare": "5.20261001.0-alpha",
     "prettier": "latest",
+    "prettier-plugin-solidity": "2.4.1",
     "tsx": "latest",
     "typescript": "~6.0.2",
     "typescript-eslint": "latest",
+    "viem": "2.57.7",
     "vitest": "latest"
   }
 }

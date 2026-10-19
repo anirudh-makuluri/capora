@@ -18,6 +18,7 @@ const CapabilityDetail = React.lazy(() =>
 );
 const Overview = React.lazy(() => import('./pages/overview').then((m) => ({ default: m.Overview })));
 const Agents = React.lazy(() => import('./pages/agents').then((m) => ({ default: m.Agents })));
+const Bank = React.lazy(() => import('./pages/bank').then((m) => ({ default: m.Bank })));
 const Transactions = React.lazy(() =>
   import('./pages/transactions').then((m) => ({ default: m.Transactions })),
 );
@@ -68,6 +69,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
                 <Route path="/marketplace/:id" element={<CapabilityDetail />} />
                 <Route path="/overview" element={<Overview />} />
                 <Route path="/agents" element={<Agents />} />
+                <Route path="/bank" element={<Bank />} />
                 <Route path="/transactions" element={<Transactions />} />
                 <Route path="/approvals" element={<Approvals />} />
                 <Route path="/providers" element={<Providers />} />

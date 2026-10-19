@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { builtinCapabilities } from '../../apps/worker/src/providers/capabilities/registry';
+import { bankSchemas } from '../../apps/worker/src/bank/capabilities';
 import type { Capability, Invocation } from '../../packages/types/src/index';
 
 test.beforeEach(async ({ page }) => {
@@ -16,7 +17,9 @@ test('marketplace discovers, filters, and opens machine-readable details', async
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('/marketplace');
   await expect(page.getByRole('heading', { name: 'Marketplace', exact: true })).toBeVisible();
-  await expect(page.locator('.capability-card')).toHaveCount(builtinCapabilities.length);
+  await expect(page.locator('.capability-card')).toHaveCount(
+    builtinCapabilities.length + Object.keys(bankSchemas).length,
+  );
   await page.getByRole('tab', { name: 'Datasets', exact: true }).click();
   await expect(page.locator('.capability-card')).toHaveCount(
     builtinCapabilities.filter((capability) => capability.type === 'dataset').length,
@@ -62,6 +65,7 @@ test('purchased computed tools deliver usable results with approval and queued e
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('/marketplace/document_fingerprint');
+  await expect(page.locator('.detail-provider')).toContainText('Capora Bank');
   await page.getByRole('textbox', { name: 'Invocation arguments' }).fill(JSON.stringify({ text: 'abc' }));
   await page.getByRole('button', { name: 'Get a quote' }).click();
   await page.getByRole('button', { name: 'Purchase capability' }).click();
@@ -99,7 +103,7 @@ test('purchased computed tools deliver usable results with approval and queued e
   await page.getByRole('button', { name: 'Get a quote' }).click();
   await page.getByRole('button', { name: 'Purchase capability' }).click();
   await page.goto('/approvals');
-  await page.getByRole('button', { name: 'Approve $3.00' }).click();
+  await page.getByRole('button', { name: 'Approve 3.00 cUSD' }).click();
   await page.goto('/transactions');
   await page.locator('.table-capability').filter({ hasText: 'Code Pattern Scan' }).first().click();
   await page.getByRole('button', { name: 'Invoke capability' }).click();
@@ -111,7 +115,9 @@ test('purchased computed tools deliver usable results with approval and queued e
 
 test('desktop and mobile navigation render without overflow', async ({ page }) => {
   await page.goto('/marketplace');
-  await expect(page.locator('.capability-card')).toHaveCount(builtinCapabilities.length);
+  await expect(page.locator('.capability-card')).toHaveCount(
+    builtinCapabilities.length + Object.keys(bankSchemas).length,
+  );
   await page.screenshot({ path: '.local/screenshots/marketplace-desktop.png', fullPage: true });
   for (const path of ['/overview', '/agents', '/transactions', '/providers', '/developers', '/']) {
     await page.goto(path);
@@ -124,7 +130,9 @@ test('desktop and mobile navigation render without overflow', async ({ page }) =
   await page.screenshot({ path: '.local/screenshots/landing-desktop.png', fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/marketplace');
-  await expect(page.locator('.capability-card')).toHaveCount(builtinCapabilities.length);
+  await expect(page.locator('.capability-card')).toHaveCount(
+    builtinCapabilities.length + Object.keys(bankSchemas).length,
+  );
   await page.screenshot({ path: '.local/screenshots/marketplace-mobile.png', fullPage: true });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.getByRole('button', { name: 'Open navigation' }).click();

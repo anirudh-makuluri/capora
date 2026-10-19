@@ -36,6 +36,9 @@ import { billingRoutes } from './routes/billing';
 import { adminRoutes } from './routes/admin';
 import { publicConnectRoutes, connectRoutes } from './routes/connect';
 import type { AppEnv, Env } from './env';
+import { bankRoutes, publicBankRoutes } from './routes/bank';
+import { bankKeeper } from './bank/keeper';
+import { bankRpcFailure } from './bank/config';
 
 export const app = new Hono<AppEnv>();
 app.use('*', secureHeaders());
@@ -65,7 +68,8 @@ app.use(
       c.json({ error: { code: 'PAYLOAD_TOO_LARGE', message: 'Payload exceeds 256 KiB.' } }, 413),
   }),
 );
-app.onError((error, c) => {
+app.onError((cause, c) => {
+  const error = bankRpcFailure(cause) ?? cause;
   const correlationId = c.get('correlationId');
   if (error instanceof z.ZodError)
     return c.json(
@@ -100,6 +104,7 @@ app.get('/api/health', (c) =>
 );
 app.route('/api/auth', authRoutes);
 app.route('/api/connect', publicConnectRoutes);
+app.route('/api/bank', publicBankRoutes);
 app.get('/api/capabilities', async (c) => {
   const q = c.req.query();
   const input = searchSchema.parse({
@@ -123,6 +128,7 @@ app.route('/api/connect', connectRoutes);
 app.route('/api/providers', providerRoutes);
 app.route('/api/admin', adminRoutes);
 app.route('/api/billing', billingRoutes);
+app.route('/api/bank', bankRoutes);
 app.post('/api/approvals/:purchaseId', async (c) => {
   const { approve } = z.object({ approve: z.boolean() }).parse(await c.req.json());
   return c.json(await resolveApproval(c.env, c.get('userId'), c.req.param('purchaseId'), approve));
@@ -167,13 +173,17 @@ export default {
     for (const message of batch.messages) {
       try {
         await executeInvocation(env, message.body.invocationId);
-        message.ack();
+        const invocation = await env.DB.prepare('SELECT status FROM invocations WHERE id=?')
+          .bind(message.body.invocationId)
+          .first<{ status: string }>();
+        if (invocation?.status === 'queued') message.retry({ delaySeconds: 10 });
+        else message.ack();
       } catch {
         message.retry();
       }
     }
   },
   async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext) {
-    ctx.waitUntil(Promise.all([expireApprovals(env), recoverJobs(env), cleanupAuth(env)]));
+    ctx.waitUntil(Promise.all([expireApprovals(env), recoverJobs(env), cleanupAuth(env), bankKeeper(env)]));
   },
 } satisfies ExportedHandler<Env, JobMessage>;
