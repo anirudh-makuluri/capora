@@ -14,6 +14,8 @@
     "bank:deploy:local": "pnpm --filter @capora/bank deploy:local",
     "bank:configure:local": "tsx scripts/bank-local-config.ts",
     "bank:deploy:sepolia": "pnpm --filter @capora/bank deploy:sepolia",
+    "bank:configure:privy": "tsx scripts/bank-privy-setup.ts",
+    "bank:price": "tsx scripts/bank-price.ts",
     "dev": "concurrently -k -n worker,web \"pnpm --filter @capora/worker dev\" \"pnpm --filter @capora/web dev\"",
     "build": "pnpm --filter @capora/web build && pnpm --filter @capora/worker build",
     "typecheck": "tsc --noEmit -p apps/worker && tsc --noEmit -p apps/web && tsc --noEmit -p tests",

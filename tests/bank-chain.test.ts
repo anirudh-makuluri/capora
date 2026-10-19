@@ -330,7 +330,14 @@ describe('Bank vertical slices on a real isolated local EVM; PayPal is an explic
     for (let i = 0; i < 2; i++) {
       const r = await mf.dispatchFetch('http://localhost/api/bank/paypal/webhook', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'paypal-transmission-sig': 'valid-test-signature' },
+        headers: {
+          'Content-Type': 'application/json',
+          'paypal-transmission-sig': 'valid-test-signature',
+          'paypal-transmission-id': 'isolated-id',
+          'paypal-transmission-time': new Date().toISOString(),
+          'paypal-cert-url': 'https://api.sandbox.paypal.com/isolated-cert',
+          'paypal-auth-algo': 'SHA256withRSA',
+        },
         body: JSON.stringify(event),
       });
       expect(r.status, await r.text()).toBe(200);
@@ -528,6 +535,19 @@ describe('Bank vertical slices on a real isolated local EVM; PayPal is an explic
       true,
     );
     const address = (created.result as { address: Address }).address;
+    await expect(
+      api(`/agents/${agentA}/quotes`, {
+        capability_id: 'bank_rebalance_fund',
+        input: {
+          address,
+          buy: true,
+          amount: '2',
+          min_output: '0.99',
+          deadline: Number((await chain.getBlock()).timestamp) + 3600,
+          explanation: 'Invalid overly distant deadline must be rejected before purchase.',
+        },
+      }),
+    ).rejects.toMatchObject({ status: 400 });
     await action(agentB, 'invest', { address, amount: '5', min_shares: '4.9' });
     const shares = await chain.readContract({ address, abi: ManagedFundAbi, functionName: 'totalSupply' });
     expect(shares).toBe(5000000000000n);

@@ -10,7 +10,7 @@ import { evaluatePolicy } from './policy';
 import { PaymentError, PayPalSandbox } from './payments';
 import { fundPurchase } from '../bank/escrow';
 import { bankOperation, bankInput, humanOperations } from '../bank/capabilities';
-import { actionCost } from '../bank/actions';
+import { actionCost, validateBankQuoteDeadline } from '../bank/actions';
 import { providerFeeBps } from './marketplace-fees';
 import type { Env } from '../env';
 import { validateBuiltinInput } from '../providers/live';
@@ -48,6 +48,7 @@ export async function createQuote(
   if (capability.endpoint.startsWith('builtin://')) validateBuiltinInput(capability.endpoint, input);
   const bank = capability.endpoint.startsWith('bank://');
   const operation = bank ? bankOperation(capability.endpoint) : null;
+  if (operation) await validateBankQuoteDeadline(env, input);
   const priceCents = operation
     ? await actionCost(env, agentId, operation, bankInput(operation, input))
     : capability.priceCents;

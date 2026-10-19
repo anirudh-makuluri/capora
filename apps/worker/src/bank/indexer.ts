@@ -11,10 +11,15 @@ import { configuration, assertChain } from './config';
 import { jsonSafe } from './read';
 import type { Env } from '../env';
 export async function indexBankEvents(env: Env) {
+  // Public Base Sepolia RPC limits each log query to 200 blocks. Catch up in
+  // bounded pages so a keeper tick advances faster than the chain without a long job.
+  for (let page = 0; page < 5; page++) if (!(await indexBankEventPage(env))) break;
+}
+async function indexBankEventPage(env: Env) {
   const cfg = configuration(env),
     client = await assertChain(env),
     head = await client.getBlockNumber();
-  if (head < BigInt(cfg.confirmations)) return;
+  if (head < BigInt(cfg.confirmations)) return false;
   const through = head - BigInt(cfg.confirmations) + 1n;
   const cursor = await env.DB.prepare("SELECT * FROM bank_cursors WHERE source='bank:84532'").first<{
     block_number: string;
@@ -32,8 +37,8 @@ export async function indexBankEvents(env: Env) {
     }
     from = from > 6n ? from - 6n : 0n;
   }
-  const to = from + 999n < through ? from + 999n : through;
-  if (from > to) return;
+  const to = from + 199n < through ? from + 199n : through;
+  if (from > to) return false;
   const entities = (
     await env.DB.prepare('SELECT address FROM bank_entities ORDER BY created_at DESC LIMIT 24').all<{
       address: Address;
@@ -129,4 +134,5 @@ export async function indexBankEvents(env: Env) {
   );
   // Bounded batches avoid D1 parameter limits while every event keeps a unique chain identity.
   for (let i = 0; i < statements.length; i += 40) await env.DB.batch(statements.slice(i, i + 40));
+  return to < through;
 }

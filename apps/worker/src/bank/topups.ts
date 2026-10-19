@@ -162,6 +162,16 @@ export async function reconcileTopUp(env: Env, topup: TopUp): Promise<TopUp> {
   }
 }
 export async function paypalWebhook(env: Env, headers: Headers, event: unknown) {
+  if (
+    ![
+      'paypal-transmission-id',
+      'paypal-transmission-time',
+      'paypal-cert-url',
+      'paypal-auth-algo',
+      'paypal-transmission-sig',
+    ].every((header) => headers.get(header))
+  )
+    throw new DomainError('INVALID_WEBHOOK_SIGNATURE', 'PayPal webhook signature headers are required.', 401);
   if (!env.PAYPAL_WEBHOOK_ID)
     throw new DomainError('WEBHOOK_NOT_CONFIGURED', 'Configure the Sandbox webhook ID.', 503);
   const paypal = new PayPalSandbox(env);

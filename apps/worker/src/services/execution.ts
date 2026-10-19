@@ -11,6 +11,7 @@ import { getRatingRequest } from './reviews';
 import type { Env } from '../env';
 import { startEscrow, resolveEscrow } from '../bank/escrow';
 import { chainKey } from '../bank/chain';
+import { bankRpcFailure } from '../bank/config';
 
 export interface JobMessage {
   jobId: string;
@@ -106,7 +107,18 @@ export async function invokeCapability(
         JSON.stringify({ event: 'queue_send_failed', invocationId, jobId }),
       ); /* Scheduled outbox recovery re-enqueues persisted jobs. */
     }
-  } else await executeInvocation(env, invocationId);
+  } else {
+    await executeInvocation(env, invocationId);
+    const pending = await db.select().from(invocations).where(eq(invocations.id, invocationId)).get();
+    if (pending?.status === 'queued') {
+      try {
+        await env.INVOCATION_QUEUE.send({ invocationId, jobId }, { delaySeconds: 10 });
+      } catch {
+        console.error(JSON.stringify({ event: 'queue_send_failed', invocationId, jobId }));
+        // The persisted invocation is also recovered by the scheduled Bank keeper.
+      }
+    }
+  }
   return getInvocation(env, invocationId, agentId);
 }
 export async function executeInvocation(env: Env, invocationId: string) {
@@ -183,7 +195,8 @@ export async function executeInvocation(env: Env, invocationId: string) {
         `${capability.name} returned a result in ${latencyMs}ms`,
         invocationId,
       );
-  } catch (error) {
+  } catch (cause) {
+    const error = bankRpcFailure(cause) ?? cause;
     const persisted = await db.select().from(invocations).where(eq(invocations.id, invocationId)).get();
     if (persisted?.status === 'completed') return; // A post-commit audit/release failure cannot turn success into failure.
     if (
@@ -193,8 +206,13 @@ export async function executeInvocation(env: Env, invocationId: string) {
         'TEST_ETH_REQUIRED',
         'MANAGED_SIGNER_REQUIRED',
         'SIGNER_UNAVAILABLE',
+        'SIGNER_ENROLLMENT_UNAVAILABLE',
+        'SIGNER_ENROLLMENT_REQUIRED',
+        'SIGNER_TARGET_PENDING',
+        'BANK_RPC_UNAVAILABLE',
       ].includes(error.code)
     ) {
+      console.warn(JSON.stringify({ event: 'bank_invocation_retry', invocationId, code: error.code }));
       await db.update(invocations).set({ status: 'queued' }).where(eq(invocations.id, invocationId));
       await db.update(jobs).set({ status: 'queued' }).where(eq(jobs.invocationId, invocationId));
       return;

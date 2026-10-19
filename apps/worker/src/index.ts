@@ -36,8 +36,9 @@ import { billingRoutes } from './routes/billing';
 import { adminRoutes } from './routes/admin';
 import { publicConnectRoutes, connectRoutes } from './routes/connect';
 import type { AppEnv, Env } from './env';
-import { bankRoutes,publicBankRoutes } from './routes/bank';
+import { bankRoutes, publicBankRoutes } from './routes/bank';
 import { bankKeeper } from './bank/keeper';
+import { bankRpcFailure } from './bank/config';
 
 export const app = new Hono<AppEnv>();
 app.use('*', secureHeaders());
@@ -67,7 +68,8 @@ app.use(
       c.json({ error: { code: 'PAYLOAD_TOO_LARGE', message: 'Payload exceeds 256 KiB.' } }, 413),
   }),
 );
-app.onError((error, c) => {
+app.onError((cause, c) => {
+  const error = bankRpcFailure(cause) ?? cause;
   const correlationId = c.get('correlationId');
   if (error instanceof z.ZodError)
     return c.json(
@@ -171,7 +173,11 @@ export default {
     for (const message of batch.messages) {
       try {
         await executeInvocation(env, message.body.invocationId);
-        message.ack();
+        const invocation = await env.DB.prepare('SELECT status FROM invocations WHERE id=?')
+          .bind(message.body.invocationId)
+          .first<{ status: string }>();
+        if (invocation?.status === 'queued') message.retry({ delaySeconds: 10 });
+        else message.ack();
       } catch {
         message.retry();
       }

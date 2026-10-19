@@ -1,8 +1,46 @@
 import { z } from 'zod';
-import { createPublicClient, http, isAddress, zeroAddress, type Address } from 'viem';
+import {
+  createPublicClient,
+  http,
+  isAddress,
+  zeroAddress,
+  BaseError,
+  HttpRequestError,
+  TimeoutError,
+  LimitExceededRpcError,
+  type Address,
+} from 'viem';
 import { baseSepolia } from 'viem/chains';
 import { DomainError } from '@capora/types';
 import type { Env } from '../env';
+export function bankRpcFailure(error: unknown): DomainError | null {
+  const transient = (value: unknown) =>
+    value instanceof HttpRequestError ||
+    value instanceof TimeoutError ||
+    value instanceof LimitExceededRpcError;
+  const cause = error instanceof BaseError ? error.walk(transient) : error;
+  if (
+    cause instanceof HttpRequestError ||
+    cause instanceof TimeoutError ||
+    cause instanceof LimitExceededRpcError
+  ) {
+    console.warn(
+      JSON.stringify({
+        event: 'bank_rpc_transport_error',
+        name: cause.name,
+        status: cause instanceof HttpRequestError ? cause.status : undefined,
+        code: cause instanceof LimitExceededRpcError ? cause.code : undefined,
+      }),
+    );
+  }
+  return transient(cause)
+    ? new DomainError(
+        'BANK_RPC_UNAVAILABLE',
+        'Base Sepolia RPC is temporarily unavailable. Retry the same Bank operation.',
+        503,
+      )
+    : null;
+}
 const address = z
   .string()
   .refine((v) => isAddress(v) && v.toLowerCase() !== zeroAddress)
@@ -54,6 +92,9 @@ export function chainClient(env: Env) {
   const cfg = configuration(env);
   return createPublicClient({
     chain: baseSepolia,
+    // Hosted dashboards/snapshots read many fields together. Multicall3 avoids an RPC burst;
+    // the isolated local chain deliberately has no hosted Multicall3 dependency.
+    batch: cfg.local ? undefined : { multicall: { batchSize: 4096, wait: 10 } },
     transport: http(cfg.rpc, { timeout: 15_000, retryCount: 1 }),
   });
 }

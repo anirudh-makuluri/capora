@@ -16,6 +16,9 @@ export type Env = {
   PRIVY_APP_ID?: string;
   PRIVY_APP_SECRET?: string;
   PRIVY_WALLET_ID?: string;
+  PRIVY_ENROLLMENT_AUTHORIZATION_KEY?: string;
+  BANK_PRIVY_WALLET_SET_ID?: string;
+  BANK_PRIVY_CHIT_SET_ID?: string;
   BANK_PLANNER_API_KEY?: string;
   BANK_PLANNER_MODEL?: string;
 };

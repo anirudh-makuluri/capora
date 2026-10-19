@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { validateDeploymentConfig, type DeploymentConfig } from '../scripts/deployment-config';
+import {
+  requiredSecrets,
+  validateDeploymentConfig,
+  type DeploymentConfig,
+} from '../scripts/deployment-config';
 
 const valid: DeploymentConfig = {
   name: 'capora',
@@ -15,6 +19,22 @@ const valid: DeploymentConfig = {
 };
 
 describe('Cloudflare deployment preflight', () => {
+  it('requires Bank, webhook and managed signer enrollment settings before release', () => {
+    expect(requiredSecrets).toEqual(
+      expect.arrayContaining([
+        'PAYPAL_WEBHOOK_ID',
+        'BANK_ENABLED',
+        'BANK_DEPLOYMENT',
+        'BANK_RPC_URL',
+        'PRIVY_APP_ID',
+        'PRIVY_APP_SECRET',
+        'PRIVY_WALLET_ID',
+        'PRIVY_ENROLLMENT_AUTHORIZATION_KEY',
+        'BANK_PRIVY_WALLET_SET_ID',
+        'BANK_PRIVY_CHIT_SET_ID',
+      ]),
+    );
+  });
   it('accepts the provisioned Sandbox deployment', () => {
     expect(validateDeploymentConfig(valid).origin).toBe(valid.vars.CAPORA_BASE_URL);
   });

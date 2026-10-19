@@ -1,10 +1,11 @@
-import { encodeFunctionData, keccak256, stringToHex, type Address, type Hex } from 'viem';
+import { encodeFunctionData, keccak256, stringToHex, BaseError, type Address, type Hex } from 'viem';
 import { AgentWalletAbi } from '@capora/bank/abis';
 import { DomainError } from '@capora/types';
 import { canonical, id } from '../lib/crypto';
 import { boundedJson } from '../lib/provider-http';
-import { configuration, assertChain } from './config';
+import { configuration, assertChain, bankRpcFailure } from './config';
 import type { Env } from '../env';
+import { ensureSignerTarget } from './signer-policy';
 export const chainKey = (value: string) => keccak256(stringToHex(value));
 export interface BankTransaction {
   id: string;
@@ -116,6 +117,24 @@ export async function transaction(
           'The executor needs Base Sepolia test ETH for gas. No transaction was submitted.',
           503,
         );
+      await ensureSignerTarget(env, target, calldata);
+      if (!cfg.local && row.state === 'prepared') {
+        try {
+          await client.call({ account: cfg.executor, to: target, data: calldata, value: 0n });
+        } catch (cause) {
+          if (cause instanceof BaseError && cause.shortMessage.startsWith('Execution reverted')) {
+            const message =
+              'The Bank contract rejected this action before signing. Check its limits, deadline and available funds.';
+            await env.DB.prepare(
+              "UPDATE bank_transactions SET state='failed',error=?,updated_at=? WHERE id=? AND state='prepared'",
+            )
+              .bind(message, new Date().toISOString(), operation)
+              .run();
+            throw new DomainError('BANK_SIMULATION_REJECTED', message, 409);
+          }
+          throw cause;
+        }
+      }
       await env.DB.prepare(
         "UPDATE bank_transactions SET state='submitting',attempts=attempts+1,updated_at=? WHERE id=?",
       )
@@ -162,7 +181,13 @@ export async function transaction(
             }),
             signal: AbortSignal.timeout(20_000),
           },
-        );
+        ).catch(() => {
+          throw new DomainError(
+            'SIGNER_UNAVAILABLE',
+            'Managed signer submission requires reconciliation. Retry the same operation ID.',
+            503,
+          );
+        });
         if (!response.ok) {
           await response.body?.cancel();
           throw new DomainError(
@@ -187,12 +212,16 @@ export async function transaction(
     }
     if (row.tx_hash) {
       try {
-        const receipt = await client.waitForTransactionReceipt({
+        await client.waitForTransactionReceipt({
           hash: row.tx_hash,
           confirmations: cfg.confirmations,
           timeout: 15_000,
-          pollingInterval: 500,
+          pollingInterval: cfg.local ? 500 : 1500,
         });
+        // Refresh after waiting: Base preconfirmation receipts can have a zero block hash.
+        const receipt = await client.getTransactionReceipt({ hash: row.tx_hash });
+        const head = await client.getBlockNumber();
+        if (head - receipt.blockNumber + 1n < BigInt(cfg.confirmations)) return read();
         const block = await client.getBlock({ blockNumber: receipt.blockNumber });
         if (block.hash !== receipt.blockHash) return read();
         await env.DB.prepare(
@@ -212,7 +241,8 @@ export async function transaction(
       }
     }
     return read();
-  } catch (error) {
+  } catch (cause) {
+    const error = bankRpcFailure(cause) ?? cause;
     await env.DB.prepare('UPDATE bank_transactions SET error=?,updated_at=? WHERE id=?')
       .bind(
         error instanceof DomainError ? error.message : 'Chain submission requires reconciliation.',

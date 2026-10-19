@@ -5,6 +5,7 @@ import { DomainError } from '@capora/types';
 import { configuration, assertChain } from './config';
 import { chainKey, transaction, requireConfirmed } from './chain';
 import type { Env } from '../env';
+import { enrollSignerTarget } from './signer-policy';
 export interface BankAccount {
   id: string;
   user_id: string;
@@ -75,15 +76,16 @@ export async function ensureAccount(
   }
   if (address === zeroAddress || !(await client.getCode({ address })))
     throw new DomainError('WALLET_NOT_CONFIRMED', 'Wallet deployment is not yet confirmed.', 409);
+  await enrollSignerTarget(env, address, 'wallet');
   await env.DB.prepare("UPDATE bank_accounts SET address=?,state='active' WHERE id=?")
     .bind(address, account.id)
     .run();
   return { ...account, address, state: 'active' };
 }
 export async function balance(env: Env, account: BankAccount) {
+  if (!account.address) return { ...account, balance: null, gas: null };
   const cfg = configuration(env),
     client = await assertChain(env);
-  if (!account.address) return { ...account, balance: null, gas: null };
   const [token, gas, collateral] = await Promise.all([
     client.readContract({
       address: cfg.token,

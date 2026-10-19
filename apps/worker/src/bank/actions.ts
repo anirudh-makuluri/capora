@@ -23,6 +23,17 @@ import { ensureAccount } from './accounts';
 import { bankRead, entityRecord, jsonSafe } from './read';
 import type { Env } from '../env';
 const n = (input: Record<string, unknown>, key: string) => units(String(input[key]));
+export async function validateBankQuoteDeadline(env: Env, input: Record<string, unknown>) {
+  if (typeof input.deadline !== 'number') return;
+  const client = await assertChain(env);
+  const now = (await client.getBlock()).timestamp;
+  const deadline = BigInt(input.deadline);
+  if (deadline <= now || deadline > now + 600n)
+    throw new DomainError(
+      'INVALID_BANK_DEADLINE',
+      'Choose a transaction deadline within the next ten minutes.',
+    );
+}
 export interface FinancialPolicy {
   destinations: string;
   max_investment_cents: number;
