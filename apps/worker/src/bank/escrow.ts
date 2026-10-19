@@ -2,7 +2,8 @@ import { encodeFunctionData, type Hex } from 'viem';
 import { PurchaseEscrowAbi, CaporaUSDAbi, ManagedFundAbi } from '@capora/bank/abis';
 import { centsToUnits } from '@capora/bank';
 import { DomainError } from '@capora/types';
-import { configuration, assertChain, providerFeeBps } from './config';
+import { configuration, assertChain } from './config';
+import { providerFeeBps } from '../services/marketplace-fees';
 import { ensureAccount } from './accounts';
 import { chainKey, walletTransaction, transaction, requireConfirmed } from './chain';
 import type { Env } from '../env';
@@ -40,7 +41,7 @@ export async function fundPurchase(
     throw new DomainError('QUOTE_STALE', 'Capability changed after quoting. Request a new quote.', 409);
   const buyer = await ensureAccount(env, 'agent', agentId),
     seller = await ensureAccount(env, 'provider', providerId);
-  const fee = quote?.escrow_fee_bps ?? providerFeeBps(env, providerId);
+  const fee = quote?.escrow_fee_bps ?? (await providerFeeBps(env, providerId));
   // Serialize the version/owner check with the escrow intent. Catalog migration sees this
   // unresolved intent and defers ownership; if migration won the race, no funds can be sent.
   await env.DB.prepare(

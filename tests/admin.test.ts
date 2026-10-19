@@ -5,10 +5,14 @@ import { resolve } from 'node:path';
 import { hashPassword } from '../apps/worker/src/lib/password';
 import { isAdminEmail } from '../apps/worker/src/lib/admin';
 import { catalogStatements } from '../scripts/seed-data';
+import { getMarketplaceFeeSettings } from '../apps/worker/src/services/marketplace-fees';
+import { createQuote } from '../apps/worker/src/services/commerce';
+import type { Env } from '../apps/worker/src/env';
 import type {
   CapabilityRegistration,
   ManagedCapability,
   ProviderHostSettings,
+  MarketplaceFeeSettings,
 } from '../packages/types/src/index';
 
 let mf: Miniflare;
@@ -165,6 +169,8 @@ describe('Admin authorization and runtime marketplace management', () => {
     for (const [path, method] of [
       ['/provider-hosts', 'GET'],
       ['/provider-hosts', 'PUT'],
+      ['/marketplace-fee', 'GET'],
+      ['/marketplace-fee', 'PUT'],
       ['/providers', 'GET'],
       ['/capabilities', 'GET'],
       ['/capabilities', 'POST'],
@@ -181,10 +187,23 @@ describe('Admin authorization and runtime marketplace management', () => {
       headers: { Authorization: `Bearer ${agent.token}` },
     });
     expect(tokenRequest.status).toBe(401);
+    expect(
+      (
+        await mf.dispatchFetch(`${base}/api/admin/marketplace-fee`, {
+          method: 'PUT',
+          headers: { Authorization: `Bearer ${agent.token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ feeBps: 100, revision: 0 }),
+        })
+      ).status,
+    ).toBe(401);
     expect((await read<{ isAdmin: boolean }>('/auth/session')).isAdmin).toBe(true);
     expect((await read<{ isAdmin: boolean }>('/auth/session', member)).isAdmin).toBe(false);
     expect(
       (await send('/admin/provider-hosts', admin, 'PUT', { hosts: [], revision: 0 }, 'https://evil.com'))
+        .status,
+    ).toBe(403);
+    expect(
+      (await send('/admin/marketplace-fee', admin, 'PUT', { feeBps: 100, revision: 0 }, 'https://evil.com'))
         .status,
     ).toBe(403);
   });
@@ -243,6 +262,102 @@ describe('Admin authorization and runtime marketplace management', () => {
         )
         .first(),
     ).toEqual({ count: 2 });
+  });
+  it('persists marketplace fees including zero and overrides the deployment fallback', async () => {
+    expect(await read('/admin/marketplace-fee')).toMatchObject({
+      feeBps: 250,
+      source: 'default',
+      revision: 0,
+    });
+    const db = await mf.getD1Database('DB');
+    const env = { DB: db, BANK_MARKETPLACE_FEE_BPS: '375' } as Env;
+    expect(await getMarketplaceFeeSettings(env)).toMatchObject({ feeBps: 375, source: 'environment' });
+    for (const [revision, feeBps] of [0, 1000, 175].entries()) {
+      const response = await send('/admin/marketplace-fee', admin, 'PUT', { feeBps, revision });
+      expect(response.status).toBe(200);
+      expect(await read('/admin/marketplace-fee')).toMatchObject({
+        feeBps,
+        source: 'dashboard',
+        revision: revision + 1,
+      });
+      expect((await getMarketplaceFeeSettings(env)).feeBps).toBe(feeBps);
+    }
+    expect((await getMarketplaceFeeSettings({ ...env, BANK_MARKETPLACE_FEE_BPS: 'invalid' })).feeBps).toBe(
+      175,
+    );
+    expect(
+      await db
+        .prepare("SELECT updated_by FROM operator_settings WHERE key='marketplace_fee_bps'")
+        .first('updated_by'),
+    ).toBe('admin');
+    expect(
+      await db
+        .prepare(
+          "SELECT COUNT(*) AS n FROM activity WHERE kind='marketplace_fee_updated' AND user_id='admin'",
+        )
+        .first('n'),
+    ).toBe(3);
+  });
+  it('rejects stale and concurrent fee updates without overwriting the saved rate', async () => {
+    const responses = await Promise.all(
+      [100, 500].map((feeBps) => send('/admin/marketplace-fee', admin, 'PUT', { feeBps, revision: 0 })),
+    );
+    expect(responses.map((r) => r.status).sort()).toEqual([200, 409]);
+    const first = await read<MarketplaceFeeSettings>('/admin/marketplace-fee');
+    const updates = await Promise.all(
+      [0, 1000].map((feeBps) =>
+        send('/admin/marketplace-fee', admin, 'PUT', { feeBps, revision: first.revision }),
+      ),
+    );
+    expect(updates.map((r) => r.status).sort()).toEqual([200, 409]);
+    expect((await read<MarketplaceFeeSettings>('/admin/marketplace-fee')).revision).toBe(2);
+    expect((await send('/admin/marketplace-fee', admin, 'PUT', { feeBps: 999, revision: 0 })).status).toBe(
+      409,
+    );
+  });
+  it('rejects malformed or out-of-range fee updates without persisting a setting', async () => {
+    for (const feeBps of [-1, 1001, 1.5, '250', null])
+      expect((await send('/admin/marketplace-fee', admin, 'PUT', { feeBps, revision: 0 })).status).toBe(400);
+    for (const body of [
+      { feeBps: 100 },
+      { feeBps: 100, revision: -1 },
+      { feeBps: 100, revision: '0' },
+      { feeBps: 100, revision: 0, bypass: true },
+    ])
+      expect((await send('/admin/marketplace-fee', admin, 'PUT', body)).status).toBe(400);
+    expect((await read<MarketplaceFeeSettings>('/admin/marketplace-fee')).revision).toBe(0);
+    const db = await mf.getD1Database('DB');
+    expect(
+      await db.prepare("SELECT COUNT(*) AS n FROM activity WHERE kind='marketplace_fee_updated'").first('n'),
+    ).toBe(0);
+  });
+  it('applies saved fees to new quotes while preserving old quotes and the Bank exemption', async () => {
+    const capabilityId = await create();
+    const agent = (await (await send('/agents', member, 'POST', { name: 'Fee quote buyer' })).json()) as {
+      id: string;
+    };
+    const env = {
+      DB: await mf.getD1Database('DB'),
+      BANK_ENABLED: 'true',
+      BANK_MARKETPLACE_FEE_BPS: '375',
+    } as Env;
+    const old = await createQuote(env, agent.id, capabilityId, { sku: 'A' });
+    expect(old.escrowFeeBps).toBe(375);
+    await send('/admin/marketplace-fee', admin, 'PUT', { feeBps: 100, revision: 0 });
+    expect((await createQuote(env, agent.id, capabilityId, { sku: 'A' })).escrowFeeBps).toBe(100);
+    expect(
+      (await createQuote(env, agent.id, 'document_fingerprint', { text: 'Bank owned' })).escrowFeeBps,
+    ).toBe(0);
+    await send('/admin/marketplace-fee', admin, 'PUT', { feeBps: 0, revision: 1 });
+    expect((await createQuote(env, agent.id, capabilityId, { sku: 'A' })).escrowFeeBps).toBe(0);
+    expect(
+      (await createQuote(env, agent.id, 'document_fingerprint', { text: 'Bank owned' })).escrowFeeBps,
+    ).toBe(0);
+    expect(
+      await env.DB.prepare('SELECT escrow_fee_bps FROM quotes WHERE id=?')
+        .bind(old.id)
+        .first('escrow_fee_bps'),
+    ).toBe(375);
   });
   it('rejects URLs, wildcard hosts, IPs, private names and malformed labels without updating settings', async () => {
     for (const host of [

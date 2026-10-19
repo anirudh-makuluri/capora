@@ -23,6 +23,8 @@ import { catalogStatements } from '../scripts/seed-data';
 import { chainKey } from '../apps/worker/src/bank/chain';
 import { displayUnits } from '../packages/bank/src/index';
 import { CAPORA_BANK_PROVIDER_ID } from '../packages/config/src/index';
+import { saveMarketplaceFee } from '../apps/worker/src/services/marketplace-fees';
+import type { Env } from '../apps/worker/src/env';
 import type { Purchase, Quote, Invocation } from '../packages/types/src/index';
 let node: ChildProcess,
   mf: Miniflare,
@@ -420,6 +422,57 @@ describe('Bank vertical slices on a real isolated local EVM; PayPal is an explic
     expect(await balance(bank.address)).toBe(100000n);
     expect(seller.address.toLowerCase()).not.toBe(bank.address.toLowerCase());
     expect(captureCalls).toBe(1);
+  }, 30000);
+  it('settles snapshotted fees on chain after a dashboard fee change and supports a zero fee', async () => {
+    const db = await mf.getD1Database('DB'),
+      env = { DB: db } as Env;
+    const quote = () =>
+      api<Quote>(`/agents/${agentA}/quotes`, { capability_id: merchantCapability, input: {} });
+    const original = await quote();
+    expect(original.escrowFeeBps).toBe(250);
+    let settings = await saveMarketplaceFee(env, userId, { feeBps: 500, revision: 0 });
+    try {
+      const changed = await quote();
+      expect(changed.escrowFeeBps).toBe(500);
+      const seller = (await db
+        .prepare('SELECT address FROM bank_accounts WHERE provider_id=?')
+        .bind(merchantProvider)
+        .first<{ address: Address }>())!;
+      const balance = (address: Address) =>
+        chain.readContract({
+          address: deployment.token,
+          abi: CaporaUSDAbi,
+          functionName: 'balanceOf',
+          args: [address],
+        });
+      for (const [q, fee] of [
+        [original, 2500n],
+        [changed, 5000n],
+      ] as const) {
+        const beforeSeller = await balance(seller.address),
+          beforeTreasury = await balance(deployment.treasury);
+        const p = await api<Purchase>(`/agents/${agentA}/purchases`, { quote_id: q.id });
+        expect(p.status).toBe('purchased');
+        expect(
+          (await api<Invocation>(`/agents/${agentA}/invocations`, { purchase_id: p.id, input: {} })).status,
+        ).toBe('completed');
+        expect((await balance(seller.address)) - beforeSeller).toBe(100000n - fee);
+        expect((await balance(deployment.treasury)) - beforeTreasury).toBe(fee);
+      }
+      settings = await saveMarketplaceFee(env, userId, { feeBps: 0, revision: settings.revision });
+      const zero = await quote();
+      expect(zero.escrowFeeBps).toBe(0);
+      const beforeSeller = await balance(seller.address),
+        beforeTreasury = await balance(deployment.treasury);
+      const p = await api<Purchase>(`/agents/${agentA}/purchases`, { quote_id: zero.id });
+      expect(
+        (await api<Invocation>(`/agents/${agentA}/invocations`, { purchase_id: p.id, input: {} })).status,
+      ).toBe('completed');
+      expect((await balance(seller.address)) - beforeSeller).toBe(100000n);
+      expect(await balance(deployment.treasury)).toBe(beforeTreasury);
+    } finally {
+      await saveMarketplaceFee(env, userId, { feeBps: 250, revision: settings.revision });
+    }
   }, 30000);
   it('enforces recipient limits and routes owner policy changes through approval', async () => {
     const wallet = await api<{ address: Address }>(`/bank/agents/${agentB}/provision`, {});

@@ -148,7 +148,7 @@ export const capabilities = sqliteTable(
 );
 export const operatorSettings = sqliteTable('operator_settings', {
   key: text('key').primaryKey(),
-  value: text('value', { mode: 'json' }).$type<string[]>().notNull(),
+  value: text('value', { mode: 'json' }).$type<string[] | number>().notNull(),
   revision: integer('revision').notNull().default(1),
   updatedAt: text('updated_at').notNull(),
   updatedBy: text('updated_by')

@@ -11,7 +11,7 @@ import { PaymentError, PayPalSandbox } from './payments';
 import { fundPurchase } from '../bank/escrow';
 import { bankOperation, bankInput, humanOperations } from '../bank/capabilities';
 import { actionCost } from '../bank/actions';
-import { providerFeeBps } from '../bank/config';
+import { providerFeeBps } from './marketplace-fees';
 import type { Env } from '../env';
 import { validateBuiltinInput } from '../providers/live';
 
@@ -60,7 +60,7 @@ export async function createQuote(
     priceCents,
     escrowFeeBps:
       !bank && priceCents > 0 && (env.BANK_ENABLED === 'true' || env.BANK_LEGACY_PAYMENT_FIXTURE !== 'true')
-        ? providerFeeBps(env, capability.providerId)
+        ? await providerFeeBps(env, capability.providerId)
         : null,
     currency: 'cUSD' as const,
     input,

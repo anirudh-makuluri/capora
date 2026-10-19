@@ -2,7 +2,6 @@ import { z } from 'zod';
 import { createPublicClient, http, isAddress, zeroAddress, type Address } from 'viem';
 import { baseSepolia } from 'viem/chains';
 import { DomainError } from '@capora/types';
-import { CAPORA_BANK_PROVIDER_ID } from '@capora/config';
 import type { Env } from '../env';
 const address = z
   .string()
@@ -29,9 +28,6 @@ export function marketplaceFeeBps(env: Env) {
     .max(1000)
     .parse(env.BANK_MARKETPLACE_FEE_BPS ?? '250');
 }
-export function providerFeeBps(env: Env, providerId: string) {
-  return providerId === CAPORA_BANK_PROVIDER_ID ? 0 : marketplaceFeeBps(env);
-}
 export function configuration(env: Env) {
   const result = deploymentSchema.safeParse(env.BANK_DEPLOYMENT ? JSON.parse(env.BANK_DEPLOYMENT) : null);
   if (env.BANK_ENABLED !== 'true' || !result.success || !env.BANK_RPC_URL)
@@ -51,7 +47,6 @@ export function configuration(env: Env) {
     ...result.data,
     local,
     rpc: url.href,
-    feeBps: marketplaceFeeBps(env),
     confirmations: local ? 1 : 3,
   };
 }

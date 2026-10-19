@@ -15,6 +15,14 @@ pnpm auth:provision-admin -- --file .local/admin-account.json
 
 Use `--remote` only when provisioning the deployed database is intended. This creates a new account without changing existing users or passwords. Delete the credential file after provisioning. The existing `auth:bootstrap-owner` command remains the way to claim the seeded owner's workspace and data.
 
+## Marketplace transaction fee
+
+Set **Marketplace fee (%)** to a rate from **0 to 10%**, with up to two decimal places, then select **Save fee**. Zero waives the marketplace fee. The rate applies to newly created quotes for user-created capabilities; Capora Bank-owned capabilities remain fee-free. Quotes already issued and escrows already funded keep their original rate, even if the admin changes the setting before purchase or execution.
+
+The setting persists in D1 across deployments. Until the first save, `BANK_MARKETPLACE_FEE_BPS` supplies the fallback in basis points (`250` means 2.5%); if unset, the default is 2.5%. A saved setting, including zero, takes precedence over the deployment variable. No deployment is required to change a saved rate. The existing `operator_settings` table stores this setting, so no additional SQL migration is needed beyond the current application migrations.
+
+Admin-only `GET /api/admin/marketplace-fee` returns `feeBps`, `source`, `revision` and `updatedAt`. `PUT` accepts integer `feeBps` from 0–1000 and the loaded `revision`. Agent tokens and non-admin sessions cannot change it. Stale or concurrent saves return `409 SETTINGS_CHANGED`; select **Reload fee** to fetch the current rate before reapplying a draft. Successful changes record the admin and rate in activity history.
+
 ## Approved hostnames
 
 Enter exact public DNS hostnames, one per line, and save. URLs, wildcard domains, paths, ports, IP literals and private hostname suffixes are rejected. Verify provider ownership and public DNS before granting approval. Approval is operator trust; this feature does not automatically verify domain ownership.

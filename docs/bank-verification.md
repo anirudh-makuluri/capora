@@ -1,6 +1,6 @@
 # Capora Bank verification and handoff
 
-Verified locally on October 18, 2026 (America/Phoenix).
+Verified locally on October 19, 2026 (America/Phoenix).
 
 ## Passing checks
 
@@ -11,8 +11,8 @@ Verified locally on October 18, 2026 (America/Phoenix).
 | `pnpm bank:build`           | Pass: Solidity 0.8.30, generated shared ABIs, no contract size warnings    |
 | `pnpm bank:test`            | 18 Solidity tests pass, including 256 randomized escrow conservation cases |
 | `pnpm build`                | Pass: Vite production build and Wrangler deployment dry-run                |
-| `pnpm exec vitest run`      | 219 tests pass across 17 suites                                            |
-| `pnpm exec playwright test` | 31 Chromium tests pass                                                     |
+| `pnpm exec vitest run`      | 224 tests pass across 17 suites                                            |
+| `pnpm exec playwright test` | 32 Chromium tests pass                                                     |
 | `pnpm db:generate`          | No schema changes after the checked-in migrations/snapshots                |
 | `git diff --check`          | Pass                                                                       |
 
@@ -28,7 +28,7 @@ The Solidity suite covers exact-once minting, wallet identity/replay/revocation,
 4. Fund creation, deposits, shares, actual inventory swaps, token positions, NAV snapshots, unwind and redemption.
 5. Lending liquidity deposits, collateralized borrowing, repayment and collateral return.
 6. A complete two-agent commit/reveal auction chit, highest-discount winner, exact payout/commission/dividend accounting, second round, claims and returned security.
-7. Provider earnings moved to an owned agent, a portion invested and another external capability purchased.
+7. Provider earnings moved to an owned agent, a portion invested and another external capability purchased. A separate settlement check changes the saved marketplace fee after quoting: the old quote settles at 2.5%, the next at 5%, and a subsequent zero-fee quote sends the entire price to the provider.
 8. An AI proposal selects an allowlisted analytics capability; its actual escrow payment comes from the vault under its on-chain expense budget, and repeated strategy triggering is rate limited.
 9. Known provider failure refunds and forged webhook rejection.
 10. Permissionless on-chain expiry refund reconciled into D1, canonical event replay without duplicates, and real wallet cash-flow indexing.
@@ -45,7 +45,9 @@ Migration `0010_bank_capability_ownership.sql` and the updated catalog seed were
 
 ## Browser proof
 
-The new Bank browser test verifies desktop/mobile navigation, unmistakable simulated-funds labeling, disabled operations when contracts are unconfigured, explicit setup errors, financial-policy saving, all Bank sections, accessibility and absence of horizontal overflow. The existing 30 browser tests also pass, including account isolation, live MCP onboarding against the disposable Worker, paid computation/approval, admin controls and visual regressions at eight viewport sizes. The long Bank capability names wrap correctly in the existing marketplace. Desktop and mobile Bank screenshots were visually inspected in addition to automated accessibility checks.
+The admin fee editor accepts 0–10% in 0.01% increments and persists its setting in D1. Admin integration tests cover environment/default fallback, saved-zero precedence, update auditing, invalid input, authorization, concurrent-save conflicts and quote snapshots. The browser suite exercises fee edits, reload persistence, stale tabs and explicit reload recovery, non-admin denial, mobile layout and accessibility. Desktop/mobile screenshots of the new fee panel were visually inspected. See [admin.md](admin.md) for the setting and API contract.
+
+The Bank browser test verifies desktop/mobile navigation, unmistakable simulated-funds labeling, disabled operations when contracts are unconfigured, explicit setup errors, financial-policy saving, all Bank sections, accessibility and absence of horizontal overflow. The other 31 browser tests also pass, including account isolation, live MCP onboarding against the disposable Worker, paid computation/approval, admin controls and visual regressions at eight viewport sizes. The long Bank capability names wrap correctly in the existing marketplace. Desktop and mobile Bank screenshots were visually inspected in addition to automated accessibility checks.
 
 ## Deployment boundary
 

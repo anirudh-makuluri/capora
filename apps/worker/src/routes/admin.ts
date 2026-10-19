@@ -7,6 +7,7 @@ import { audit } from '../lib/audit';
 import { publicCapability } from '../services/catalog';
 import { getProviderHostSettings, saveProviderHosts } from '../services/provider-hosts';
 import { registerCapability } from '../services/provider-registration';
+import { getMarketplaceFeeSettings, saveMarketplaceFee } from '../services/marketplace-fees';
 import { validateProviderEndpoint } from '../services/gateway';
 import type { AppEnv } from '../env';
 
@@ -18,6 +19,19 @@ adminRoutes.use('*', async (c, next) => {
   await next();
 });
 adminRoutes.get('/provider-hosts', async (c) => c.json(await getProviderHostSettings(c.env)));
+adminRoutes.get('/marketplace-fee', async (c) => c.json(await getMarketplaceFeeSettings(c.env)));
+adminRoutes.put('/marketplace-fee', async (c) => {
+  const settings = await saveMarketplaceFee(c.env, c.get('userId'), await c.req.json());
+  await audit(
+    c.env,
+    c.get('userId'),
+    'marketplace_fee_updated',
+    `Marketplace fee updated to ${settings.feeBps / 100}% for new quotes`,
+    'marketplace_fee_bps',
+    c.get('correlationId'),
+  );
+  return c.json(settings);
+});
 adminRoutes.put('/provider-hosts', async (c) => {
   const settings = await saveProviderHosts(c.env, c.get('userId'), await c.req.json());
   await audit(

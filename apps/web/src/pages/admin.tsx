@@ -2,7 +2,13 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { Plus, Search, ShieldCheck, Trash2, RotateCcw } from 'lucide-react';
-import { money, type AdminProvider, type ManagedCapability, type ProviderHostSettings } from '@capora/types';
+import {
+  money,
+  type AdminProvider,
+  type ManagedCapability,
+  type ProviderHostSettings,
+  type MarketplaceFeeSettings,
+} from '@capora/types';
 import { api, useAction, useSession, time } from '../lib/api';
 import { Badge, Button, Dialog, Empty, ErrorNotice, Field, Skeleton } from '../components/ui';
 import { CapabilityForm } from './providers';
@@ -23,6 +29,11 @@ export function Admin() {
 }
 
 function AdminDashboard() {
+  const fee = useQuery({
+    queryKey: ['admin', 'marketplace-fee'],
+    queryFn: () => api<MarketplaceFeeSettings>('/admin/marketplace-fee'),
+    refetchOnWindowFocus: false,
+  });
   const hosts = useQuery({
     queryKey: ['admin', 'hosts'],
     queryFn: () => api<ProviderHostSettings>('/admin/provider-hosts'),
@@ -60,13 +71,15 @@ function AdminDashboard() {
         <div>
           <div className="eyebrow">MARKETPLACE ADMINISTRATION</div>
           <h1>Admin dashboard</h1>
-          <p>Approve provider hosts and manage capabilities across the marketplace.</p>
+          <p>Set marketplace fees, approve provider hosts and manage capabilities.</p>
         </div>
         <Badge tone="green">
           <ShieldCheck size={14} /> Operator access
         </Badge>
       </div>
-      <ErrorNotice error={hosts.error ?? caps.error ?? providers.error} />
+      <ErrorNotice error={fee.error ?? hosts.error ?? caps.error ?? providers.error} />
+      {fee.isPending && <Skeleton className="detail-skeleton" />}
+      {fee.data && <FeeEditor settings={fee.data} />}
       {hosts.isPending && <Skeleton className="detail-skeleton" />}
       {hosts.data && <HostEditor key={hosts.data.revision} settings={hosts.data} />}
       <section className="panel admin-catalog">
@@ -215,6 +228,105 @@ function AdminDashboard() {
         </div>
       </Dialog>
     </>
+  );
+}
+
+function FeeEditor({ settings }: { settings: MarketplaceFeeSettings }) {
+  // Keep the loaded revision with the draft. Background query updates must not
+  // authorize overwriting a change made by another admin while this form is open.
+  const [snapshot, setSnapshot] = useState(settings);
+  const [value, setValue] = useState(String(settings.feeBps / 100));
+  const [saved, setSaved] = useState(false);
+  const client = useQueryClient();
+  const percent = Number(value);
+  const valid = /^\d+(\.\d{1,2})?$/.test(value) && percent >= 0 && percent <= 10;
+  const feeBps = Math.round(percent * 100);
+  const dirty = valid && (snapshot.source !== 'dashboard' || feeBps !== snapshot.feeBps);
+  const apply = (updated: MarketplaceFeeSettings) => {
+    client.setQueryData(['admin', 'marketplace-fee'], updated);
+    setSnapshot(updated);
+    setValue(String(updated.feeBps / 100));
+  };
+  const save = useAction(async () => {
+    const updated = await api<MarketplaceFeeSettings>('/admin/marketplace-fee', {
+      method: 'PUT',
+      body: { feeBps, revision: snapshot.revision },
+    });
+    apply(updated);
+    setSaved(true);
+  });
+  const reload = useAction(async () => {
+    apply(await api<MarketplaceFeeSettings>('/admin/marketplace-fee'));
+    save.reset();
+    setSaved(false);
+  });
+  const busy = save.isPending || reload.isPending;
+  return (
+    <section className="panel admin-hosts admin-fees" aria-labelledby="marketplace-fee-heading">
+      <div className="panel-heading">
+        <div>
+          <h2 id="marketplace-fee-heading">Marketplace transaction fee</h2>
+          <p className="muted">Applies to new quotes for user-created capabilities.</p>
+        </div>
+        <Badge>{snapshot.feeBps / 100}% current fee</Badge>
+      </div>
+      <form
+        className="panel-padding"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (valid && dirty && !busy) save.mutate(undefined);
+        }}
+      >
+        <Field
+          label="Marketplace fee (%)"
+          hint="Enter 0–10%, with up to two decimal places. Set 0 to waive the fee."
+        >
+          <input
+            type="number"
+            min="0"
+            max="10"
+            step="0.01"
+            required
+            value={value}
+            disabled={busy}
+            aria-invalid={!valid}
+            onChange={(event) => {
+              setValue(event.target.value);
+              setSaved(false);
+            }}
+          />
+        </Field>
+        <p className="muted admin-host-note">
+          Capora Bank-owned capabilities remain fee-free. Existing quotes and escrow payments keep their
+          original rate.
+        </p>
+        <ErrorNotice error={save.error ?? reload.error} />
+        <div className="admin-host-footer">
+          <span className="muted">
+            {snapshot.source === 'dashboard'
+              ? `Saved ${snapshot.updatedAt ? time(snapshot.updatedAt) : ''} · persists across deployments`
+              : snapshot.source === 'environment'
+                ? 'Using the deployment configuration until the first save.'
+                : 'Using the default fee until the first save.'}
+          </span>
+          <div className="action-row">
+            <Button
+              type="button"
+              variant="secondary"
+              busy={reload.isPending}
+              disabled={busy}
+              onClick={() => reload.mutate(undefined)}
+            >
+              Reload fee
+            </Button>
+            <Button busy={save.isPending} disabled={!dirty || busy}>
+              Save fee
+            </Button>
+          </div>
+        </div>
+        <div role="status">{saved && 'Marketplace fee saved. New quotes use this rate.'}</div>
+      </form>
+    </section>
   );
 }
 
