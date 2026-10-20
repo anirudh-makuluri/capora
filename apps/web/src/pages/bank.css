@@ -1,15 +1,22 @@
-.bank-testnet {
-  padding: 20px 24px;
-  border: 1px solid var(--border);
-  border-left: 4px solid #8f4c36;
-  background: var(--surface, #fffdf7);
-  margin-bottom: 24px;
+.bank-inline-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  border-radius: 3px;
+  text-underline-offset: 4px;
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease;
 }
-.bank-testnet strong {
-  margin-left: 14px;
+.bank-inline-link svg {
+  flex-shrink: 0;
 }
-.bank-testnet p {
-  margin: 12px 0 0;
+.bank-inline-link:hover,
+.bank-inline-link:focus-visible {
+  color: var(--rust-strong);
+  background: var(--gold-soft);
+  text-decoration: underline;
 }
 .bank-toolbar {
   display: flex;
@@ -36,6 +43,18 @@
   color: inherit;
   cursor: pointer;
   font: inherit;
+  border-bottom: 3px solid transparent;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+.bank-tabs button:hover,
+.bank-tabs button:focus-visible {
+  background: var(--gold-soft);
+  color: var(--rust-strong);
+}
+.bank-tabs button:focus-visible {
+  outline-offset: -3px;
 }
 .bank-tabs button.active {
   border-bottom: 3px solid #8f4c36;
@@ -45,6 +64,18 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
   gap: 20px;
+  align-items: start;
+}
+.bank-wallet-actions,
+.bank-receipt-heading,
+.bank-receipt-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.bank-wallet-actions {
+  margin: 16px 0;
 }
 .bank-card,
 .bank-section,
@@ -93,13 +124,20 @@
   flex-basis: 100%;
 }
 .bank-receipt {
-  padding: 20px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 28px 0;
   border-top: 1px solid var(--border);
   overflow-wrap: anywhere;
 }
-.bank-receipt > .button,
-.bank-receipt > a {
-  margin: 8px 12px 8px 0;
+.bank-receipt p {
+  margin: 0;
+}
+.bank-receipt-actions {
+  gap: 20px;
+  margin-top: 4px;
 }
 .bank-action {
   border-top: 4px solid #8f4c36;
@@ -164,9 +202,8 @@
   .bank-toolbar {
     display: block;
   }
-  .bank-testnet strong {
-    display: block;
-    margin: 12px 0 0;
+  .bank-toolbar > .bank-inline-link {
+    margin-top: 16px;
   }
   .bank-form {
     display: block;

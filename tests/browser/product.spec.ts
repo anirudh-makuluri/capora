@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { builtinCapabilities } from '../../apps/worker/src/providers/capabilities/registry';
-import { bankSchemas } from '../../apps/worker/src/bank/capabilities';
+
 import type { Capability, Invocation } from '../../packages/types/src/index';
 
 test.beforeEach(async ({ page }) => {
@@ -17,9 +17,16 @@ test('marketplace discovers, filters, and opens machine-readable details', async
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('/marketplace');
   await expect(page.getByRole('heading', { name: 'Marketplace', exact: true })).toBeVisible();
-  await expect(page.locator('.capability-card')).toHaveCount(
-    builtinCapabilities.length + Object.keys(bankSchemas).length,
-  );
+  await expect(page.locator('.market-hero, .market-trust, .catalog-count, .catalog-note')).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Find your next capability' })).toHaveCount(0);
+  await expect(page.getByText(/Your agent’s next breakthrough|Give your agents access/)).toHaveCount(0);
+  await expect(page.locator('.capability-card[href*="/bank_"]')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Filters', exact: true }).click();
+  await expect(
+    page.getByLabel('Filter category').getByRole('option', { name: 'Capora Bank', exact: true }),
+  ).toHaveCount(0);
+  await page.getByRole('button', { name: 'Filters', exact: true }).click();
+  await expect(page.locator('.capability-card')).toHaveCount(builtinCapabilities.length);
   await page.getByRole('tab', { name: 'Datasets', exact: true }).click();
   await expect(page.locator('.capability-card')).toHaveCount(
     builtinCapabilities.filter((capability) => capability.type === 'dataset').length,
@@ -115,9 +122,7 @@ test('purchased computed tools deliver usable results with approval and queued e
 
 test('desktop and mobile navigation render without overflow', async ({ page }) => {
   await page.goto('/marketplace');
-  await expect(page.locator('.capability-card')).toHaveCount(
-    builtinCapabilities.length + Object.keys(bankSchemas).length,
-  );
+  await expect(page.locator('.capability-card')).toHaveCount(builtinCapabilities.length);
   await page.screenshot({ path: '.local/screenshots/marketplace-desktop.png', fullPage: true });
   for (const path of ['/overview', '/agents', '/transactions', '/providers', '/developers', '/']) {
     await page.goto(path);
@@ -130,9 +135,7 @@ test('desktop and mobile navigation render without overflow', async ({ page }) =
   await page.screenshot({ path: '.local/screenshots/landing-desktop.png', fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/marketplace');
-  await expect(page.locator('.capability-card')).toHaveCount(
-    builtinCapabilities.length + Object.keys(bankSchemas).length,
-  );
+  await expect(page.locator('.capability-card')).toHaveCount(builtinCapabilities.length);
   await page.screenshot({ path: '.local/screenshots/marketplace-mobile.png', fullPage: true });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.getByRole('button', { name: 'Open navigation' }).click();

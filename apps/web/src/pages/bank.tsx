@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Copy, ExternalLink, RefreshCw, Wallet, ArrowUpRight } from 'lucide-react';
-import { displayUnits, units, unitsToCents, explorer, SIMULATED_FUNDS } from '@capora/bank';
+import { displayUnits, units, unitsToCents, explorer } from '@capora/bank';
 import type { Capability, Quote, Purchase, Invocation } from '@capora/types';
 import { api, useDashboard, useCapabilities } from '../lib/api';
 import { Button, Badge, Field, ErrorNotice, Empty, Status, CodeBlock, Skeleton } from '../components/ui';
@@ -82,7 +82,7 @@ function TxLink({ hash }: { hash: string | null }) {
   const local = useContext(LocalBankContext);
   if (local && hash) return <code title="Local EVM transaction (not on hosted Base Sepolia)">{hash}</code>;
   return hash ? (
-    <a href={explorer(hash)} target="_blank" rel="noreferrer">
+    <a className="bank-inline-link" href={explorer(hash)} target="_blank" rel="noreferrer">
       View transaction <ExternalLink size={13} />
     </a>
   ) : (
@@ -154,14 +154,6 @@ export function Bank() {
           Refresh
         </Button>
       </div>
-      <div className="bank-testnet" role="note">
-        <Badge tone="amber">BASE SEPOLIA · 84532</Badge>
-        <strong>TESTNET / SIMULATED FUNDS</strong>
-        <p>
-          1 cUSD is accounted for as 1 simulated USD. It is not real USD, redeemable USDC, or a promise of
-          returns.
-        </p>
-      </div>
       <ErrorNotice error={bank.error ?? action.error} />
       {bank.isPending ? (
         <Skeleton className="detail-skeleton" />
@@ -195,8 +187,8 @@ export function Bank() {
             ))}
           </select>
         </Field>
-        <Link to="/agents">
-          Manage agent budgets and approvals <ArrowUpRight size={14} />
+        <Link to="/agents" className="bank-inline-link">
+          <span>Manage agent budgets and approvals</span> <ArrowUpRight size={14} />
         </Link>
       </div>
       <nav className="bank-tabs" aria-label="Bank sections">
@@ -224,67 +216,22 @@ export function Bank() {
         <>
           <CashflowChart cashflow={bank.data?.cashflow ?? null} />
           <section className="bank-grid">
-            {(bank.data?.accounts ?? []).map((account) => (
-              <article className="panel bank-card" key={account.id}>
-                <Wallet size={22} />
-                <h2>
-                  {agents.find((a) => a.id === account.agent_id)?.name ??
-                    dashboard?.providers.find((p) => p.id === account.provider_id)?.name ??
-                    'Provider wallet'}
-                </h2>
-                <div className="bank-balance">
-                  {account.balance === null ? '—' : account.balance} <small>cUSD</small>
-                </div>
-                <Status status={account.state} />
-                {account.address ? (
-                  <>
-                    <div className="bank-address">
-                      <code>{account.address}</code>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        aria-label="Copy wallet address"
-                        onClick={() => {
-                          void navigator.clipboard.writeText(account.address!);
-                        }}
-                      >
-                        <Copy size={15} />
-                      </Button>
-                    </div>
-                    {bank.data?.contracts?.local ? (
-                      <p>Local EVM wallet (not hosted Base Sepolia)</p>
-                    ) : (
-                      <a href={explorer(account.address, 'address')} target="_blank" rel="noreferrer">
-                        View wallet <ExternalLink size={13} />
-                      </a>
-                    )}
-                    <p className="muted">
-                      {account.collateral ?? '—'} test collateral · {account.gas ?? '—'} test ETH. Executor
-                      sponsors transaction gas.
-                    </p>
-                  </>
-                ) : (
-                  account.agent_id && (
-                    <Button
-                      disabled={!bank.data?.configured}
-                      busy={action.isPending}
-                      onClick={() => action.mutate({ path: `/bank/agents/${account.agent_id}/provision` })}
-                    >
-                      Provision wallet
-                    </Button>
-                  )
-                )}
-                <ErrorNotice error={account.error ? new Error(account.error) : null} />
-              </article>
-            ))}
+            {(bank.data?.accounts ?? [])
+              .filter((account) => account.agent_id)
+              .map((account) => (
+                <WalletCard
+                  key={account.id}
+                  account={account}
+                  name={agents.find((a) => a.id === account.agent_id)?.name ?? 'Agent wallet'}
+                  disabled={!bank.data?.configured}
+                  busy={action.isPending}
+                  onProvision={() => action.mutate({ path: `/bank/agents/${account.agent_id}/provision` })}
+                />
+              ))}
           </section>
           {agent && (
             <section className="panel bank-section">
               <h2>Top up with PayPal Sandbox</h2>
-              <p>
-                Server-verified Sandbox capture → exact cUSD mint → confirmed wallet balance. $1–$1,000 per
-                top-up.
-              </p>
               <TopUpForm
                 key={agent}
                 agent={agent}
@@ -310,24 +257,28 @@ export function Bank() {
             ) : (
               bank.data.topups.map((t) => (
                 <div className="bank-receipt" key={t.id}>
-                  <strong>{(t.amount_cents / 100).toFixed(2)} cUSD</strong>
-                  <Status status={t.state} />
+                  <div className="bank-receipt-heading">
+                    <strong>{(t.amount_cents / 100).toFixed(2)} cUSD</strong>
+                    <Status status={t.state} />
+                  </div>
                   <p>
                     Sandbox order: {t.order_id ?? 'Pending'} · capture: {t.capture_id ?? 'Pending'}
                   </p>
-                  <TxLink hash={t.tx_hash} />
-                  {t.approval_url && (
-                    <a className="button button-primary" href={t.approval_url}>
-                      Continue with PayPal Sandbox
-                    </a>
-                  )}
-                  <Button
-                    variant="secondary"
-                    busy={action.isPending}
-                    onClick={() => action.mutate({ path: `/bank/topups/${t.id}/reconcile` })}
-                  >
-                    Reconcile top-up
-                  </Button>
+                  <div className="bank-receipt-actions">
+                    <TxLink hash={t.tx_hash} />
+                    {t.approval_url && (
+                      <a className="button button-primary" href={t.approval_url}>
+                        Continue with PayPal Sandbox
+                      </a>
+                    )}
+                    <Button
+                      variant="secondary"
+                      busy={action.isPending}
+                      onClick={() => action.mutate({ path: `/bank/topups/${t.id}/reconcile` })}
+                    >
+                      Reconcile top-up
+                    </Button>
+                  </div>
                   {t.error && <p role="alert">{t.error}</p>}
                 </div>
               ))
@@ -484,7 +435,9 @@ export function Bank() {
           ) : (
             bank.data.transactions.map((t) => (
               <div className="bank-receipt" key={t.id}>
-                <strong>{label(t.purpose)}</strong> <Status status={t.state} />
+                <div className="bank-receipt-heading">
+                  <strong>{label(t.purpose)}</strong> <Status status={t.state} />
+                </div>
                 <p>{new Date(t.created_at).toLocaleString()}</p>
                 <TxLink hash={t.tx_hash} />
                 {t.error && <p>{t.error}</p>}
@@ -503,6 +456,19 @@ export function Bank() {
       {tab === 'Earnings' && (
         <section className="panel bank-section">
           <h2>Merchant earnings</h2>
+          <div className="bank-grid" aria-label="Provider wallets">
+            {(bank.data?.accounts ?? [])
+              .filter((account) => account.provider_id)
+              .map((account) => (
+                <WalletCard
+                  key={account.id}
+                  account={account}
+                  name={
+                    dashboard?.providers.find((p) => p.id === account.provider_id)?.name ?? 'Provider wallet'
+                  }
+                />
+              ))}
+          </div>
           <Button
             variant="secondary"
             disabled={!bank.data?.configured || !agent}
@@ -515,7 +481,7 @@ export function Bank() {
             to the provider wallet.
           </p>
           <EarningsChart rows={bank.data?.earnings ?? []} />
-          <div className="table-scroll">
+          <div className="table-scroll" role="region" aria-label="Merchant earnings history" tabIndex={0}>
             <table>
               <thead>
                 <tr>
@@ -558,16 +524,77 @@ export function Bank() {
           onRefresh={refresh}
         />
       )}
-      <details className="panel bank-section">
-        <summary>Advanced: network, custody and contract addresses</summary>
-        <p>
-          {SIMULATED_FUNDS} Capora’s managed executor controls custodial smart accounts. It checks owner
-          authorization, budgets, destinations and allowed contract methods. Capora attests provider
-          fulfillment. This demonstration does not offer decentralized result verification.
-        </p>
-        {bank.data?.contracts && <CodeBlock>{JSON.stringify(bank.data.contracts, null, 2)}</CodeBlock>}
-      </details>
     </LocalBankContext.Provider>
+  );
+}
+function WalletCard({
+  account,
+  name,
+  onProvision,
+  disabled = false,
+  busy = false,
+}: {
+  account: Account;
+  name: string;
+  onProvision?: () => void;
+  disabled?: boolean;
+  busy?: boolean;
+}) {
+  const local = useContext(LocalBankContext);
+  return (
+    <article
+      className="panel bank-card"
+      aria-label={`${name} ${account.provider_id ? 'provider' : 'agent'} wallet`}
+    >
+      <Wallet size={22} />
+      <h2>{name}</h2>
+      {account.provider_id && <p className="muted">Provider wallet</p>}
+      <div className="bank-balance">
+        {account.balance === null ? '—' : account.balance} <small>cUSD</small>
+      </div>
+      <div className="bank-wallet-actions">
+        <Status status={account.state} />
+        {!account.address && onProvision && (
+          <Button disabled={disabled} busy={busy} onClick={onProvision}>
+            Provision wallet
+          </Button>
+        )}
+      </div>
+      {account.address && (
+        <>
+          <div className="bank-address">
+            <code>{account.address}</code>
+            <Button
+              size="icon"
+              variant="ghost"
+              aria-label="Copy wallet address"
+              onClick={() => {
+                void navigator.clipboard.writeText(account.address!);
+              }}
+            >
+              <Copy size={15} />
+            </Button>
+          </div>
+          {local ? (
+            <p>Local EVM wallet (not hosted Base Sepolia)</p>
+          ) : (
+            <a
+              className="bank-inline-link"
+              href={explorer(account.address, 'address')}
+              target="_blank"
+              rel="noreferrer"
+            >
+              View wallet <ExternalLink size={13} />
+            </a>
+          )}
+          <p className="muted">
+            {account.collateral ?? '—'} test collateral · {account.gas ?? '—'} test ETH. Executor sponsors
+            transaction gas.
+          </p>
+        </>
+      )}
+      <ErrorNotice error={account.error ? new Error(account.error) : null} />
+    </article>
   );
 }
 function TopUpForm({
@@ -960,10 +987,7 @@ function CashflowChart({ cashflow }: { cashflow: BankData['cashflow'] }) {
         Received {displayUnits(received)} cUSD · sent {displayUnits(sent)} cUSD. Inflows include top-ups and
         earnings; internal transfers are excluded.
       </p>
-      <small>
-        Bounded to the latest 1,000 indexed chain events. Refreshed{' '}
-        {new Date(cashflow.indexedAt).toLocaleString()}.
-      </small>
+      <small>Refreshed {new Date(cashflow.indexedAt).toLocaleString()}.</small>
     </figure>
   );
 }
