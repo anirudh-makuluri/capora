@@ -8,15 +8,12 @@ import {
   ShieldCheck,
   Clock3,
   Star,
-  Sparkles,
   LayoutGrid,
   List,
   X,
-  Terminal,
-  Zap,
 } from 'lucide-react';
 import { Badge, Button, Empty, ErrorNotice, Skeleton } from '../components/ui';
-import { MarketplaceArt, ProviderIcon } from '../components/brand';
+import { ProviderIcon } from '../components/brand';
 import { useCapabilities, latency } from '../lib/api';
 import { money, type CapabilityType } from '@capora/types';
 
@@ -46,16 +43,16 @@ export function Marketplace() {
   if (category) params.set('category', category);
   if (maxPrice) params.set('max_budget', maxPrice);
   if (minReliability) params.set('min_reliability', minReliability);
-  const { data: capabilities, error, isPending } = useCapabilities(params.toString());
+  const { data, error, isPending } = useCapabilities(params.toString());
   const { data: all } = useCapabilities();
-  const categories = [...new Set(all?.map((c) => c.category))];
+  const capabilities = data?.filter((c) => !c.id.startsWith('bank_'));
+  const categories = [...new Set(all?.filter((c) => !c.id.startsWith('bank_')).map((c) => c.category))];
   return (
     <>
       <div className="page-heading">
         <div>
           <div className="eyebrow">THE CAPABILITY ECONOMY</div>
           <h1>Marketplace</h1>
-          <p>Give your agents access to what they can’t do alone.</p>
         </div>
         <Button variant="secondary" asChild>
           <Link to="/providers">
@@ -63,60 +60,7 @@ export function Marketplace() {
           </Link>
         </Button>
       </div>
-      <section className="market-hero">
-        <div className="hero-copy">
-          <div className="hero-eyebrow">
-            <span className="tiny-orbit" /> INTELLIGENCE HAS NO CEILING
-          </div>
-          <h2>
-            Let agents acquire
-            <br />
-            what they need<span>.</span>
-          </h2>
-          <p>
-            Source-backed data. Powerful APIs. Specialized tools.
-            <br />
-            One marketplace. One MCP connection.
-          </p>
-          <Link to="/demo" className="hero-link">
-            See an agent in action <ArrowRight size={17} />
-          </Link>
-        </div>
-        <div className="hero-visual">
-          <MarketplaceArt />
-          <span className="hero-diagram-caption">
-            <span /> DISCOVER <i>→</i> PURCHASE <i>→</i> EXECUTE
-          </span>
-        </div>
-      </section>
-      <div className="market-trust">
-        <span>
-          <Terminal size={15} /> MCP-native by design
-        </span>
-        <span>
-          <ShieldCheck size={15} /> Human-controlled spending
-        </span>
-        <span>
-          <Zap size={15} /> On-demand execution
-        </span>
-        <span className="trust-paypal">
-          Payments via{' '}
-          <strong>
-            <i>PayPal</i>
-          </strong>
-          <Badge>Sandbox</Badge>
-        </span>
-      </div>
       <section className="catalog-section">
-        <div className="section-heading">
-          <div>
-            <h2>Find your next capability</h2>
-            <p>Real access. Clear pricing. Built for autonomous work.</p>
-          </div>
-          <span className="catalog-count">
-            {all?.length ?? '—'} capabilities available <span className="status-dot" />
-          </span>
-        </div>
         <div className="search-toolbar">
           <div className="search-field">
             <Search size={19} />
@@ -205,7 +149,6 @@ export function Marketplace() {
                 className={type === value ? 'active' : ''}
               >
                 {label}
-                {value === '' && <span>{capabilities?.length ?? 0}</span>}
               </button>
             ))}
           </div>
@@ -306,13 +249,6 @@ export function Marketplace() {
             </Button>
           </Empty>
         )}
-        <div className="catalog-note">
-          <Sparkles size={15} />
-          <p>Your agent’s next breakthrough could be one capability away.</p>
-          <Link to="/developers">
-            Explore the MCP tools <ArrowRight size={14} />
-          </Link>
-        </div>
       </section>
     </>
   );
