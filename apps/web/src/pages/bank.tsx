@@ -303,7 +303,7 @@ export function Bank() {
                       busy={action.isPending}
                       onClick={() => action.mutate({ path: `/bank/topups/${t.id}/reconcile` })}
                     >
-                      Reconcile top-up
+                      Check top-up status
                     </Button>
                   </div>
                   {t.error && <p role="alert">{t.error}</p>}
