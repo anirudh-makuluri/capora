@@ -58,8 +58,15 @@ export function Agents() {
               </span>
               <Status status={a.status} />
             </div>
-            <h2>{a.name}</h2><Link to={`/bank?agent=${a.id}`}>Wallet and financial policy</Link>
-            <span className="agent-id mono">{a.id}</span>
+            <h2>{a.name}</h2>
+            <div className="agent-wallet-controls">
+              <Button asChild variant="secondary" size="sm">
+                <Link to={`/bank?agent=${encodeURIComponent(a.id)}`}>Wallet and financial policy</Link>
+              </Button>
+              <span className="agent-id mono" title={a.id} aria-label={`Agent ID: ${a.id}`}>
+                {a.id.slice(0, 12)}…{a.id.slice(-4)}
+              </span>
+            </div>
             <div className="agent-spending">
               <span>Daily budget</span>
               <div>
