@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Copy, ExternalLink, RefreshCw, Wallet, ArrowUpRight } from 'lucide-react';
 import { displayUnits, units, unitsToCents, explorer } from '@capora/bank';
-import type { Capability, Quote, Purchase, Invocation } from '@capora/types';
+import type { Agent, Capability, Quote, Purchase, Invocation } from '@capora/types';
 import { api, useDashboard, useCapabilities } from '../lib/api';
 import { Button, Badge, Field, ErrorNotice, Empty, Status, CodeBlock, Skeleton } from '../components/ui';
 import { PurchaseActions } from '../components/purchase-actions';
@@ -235,21 +235,48 @@ export function Bank() {
               <TopUpForm
                 key={agent}
                 agent={agent}
+                agents={agents}
                 enabled={Boolean(bank.data?.configured)}
                 onRefresh={refresh}
               />
             </section>
           )}
-          <section className="panel bank-section">
-            <h2>Send cUSD</h2>
-            <p>
-              The recipient must be allowed by your Bank policy. Your agent’s daily and per-operation limits
-              apply.
-            </p>
-            <Button disabled={!bank.data?.configured || !agent} onClick={() => selectOperation('transfer')}>
-              Make a transfer
-            </Button>
-          </section>
+          {selected?.id === 'bank_transfer' && agent ? (
+            <BankAction
+              key={`transfer:${agent}`}
+              capability={selected}
+              agent={agent}
+              address=""
+              enabled={Boolean(bank.data?.configured)}
+              onRefresh={refresh}
+              recipients={(bank.data?.accounts ?? [])
+                .filter(
+                  (a) =>
+                    a.agent_id &&
+                    a.agent_id !== agent &&
+                    a.address &&
+                    a.state === 'active' &&
+                    agents.some((item) => item.id === a.agent_id && item.status !== 'revoked'),
+                )
+                .map((a) => ({
+                  address: a.address!,
+                  name: agents.find((item) => item.id === a.agent_id)!.name,
+                }))}
+              senderName={agents.find((a) => a.id === agent)?.name}
+              onCancel={() => setOperation('')}
+            />
+          ) : (
+            <section className="panel bank-section bank-transfer-intro">
+              <h2>Send cUSD</h2>
+              <p>
+                The recipient must be allowed by your Bank policy. Your agent’s daily and per-operation limits
+                apply.
+              </p>
+              <Button disabled={!bank.data?.configured || !agent} onClick={() => selectOperation('transfer')}>
+                Make a transfer
+              </Button>
+            </section>
+          )}
           <section className="panel bank-section">
             <h2>Top-up receipts</h2>
             {!bank.data?.topups.length ? (
@@ -514,7 +541,7 @@ export function Bank() {
           {!bank.data?.earnings.length && <p>No escrow sales yet.</p>}
         </section>
       )}
-      {selected && agent && (
+      {selected && agent && !(tab === 'Wallets' && selected.id === 'bank_transfer') && (
         <BankAction
           key={`${operation}:${selectedEntity}:${agent}`}
           capability={selected}
@@ -599,20 +626,23 @@ function WalletCard({
 }
 function TopUpForm({
   agent,
+  agents,
   enabled,
   onRefresh,
 }: {
   agent: string;
+  agents: Agent[];
   enabled: boolean;
   onRefresh: () => void;
 }) {
   const [amount, setAmount] = useState('20'),
+    [topupAgent, setTopupAgent] = useState(agent),
     key = useRef(crypto.randomUUID());
   const topup = useMutation({
     mutationFn: () =>
       api<Topup>('/bank/topups', {
         method: 'POST',
-        body: { agentId: agent, amountCents: Number(units(amount, 2)), idempotencyKey: key.current },
+        body: { agentId: topupAgent, amountCents: Number(units(amount, 2)), idempotencyKey: key.current },
       }),
     onSuccess: () => onRefresh(),
   });
@@ -624,9 +654,32 @@ function TopUpForm({
         topup.mutate();
       }}
     >
+      <Field label="Agent to top up">
+        <select
+          required
+          value={topupAgent}
+          disabled={topup.isPending}
+          onChange={(e) => {
+            setTopupAgent(e.target.value);
+            key.current = crypto.randomUUID();
+            topup.reset();
+          }}
+        >
+          <option value="" disabled>
+            Select an agent
+          </option>
+          {agents.map((a) => (
+            <option key={a.id} value={a.id} disabled={a.status === 'revoked'}>
+              {a.name}
+              {a.status === 'revoked' ? ' (revoked)' : ''}
+            </option>
+          ))}
+        </select>
+      </Field>
       <Field label="Sandbox USD amount">
         <input
           required
+          disabled={topup.isPending}
           inputMode="decimal"
           value={amount}
           onChange={(e) => {
@@ -636,7 +689,11 @@ function TopUpForm({
           }}
         />
       </Field>
-      <Button type="submit" disabled={!enabled} busy={topup.isPending}>
+      <Button
+        type="submit"
+        disabled={!enabled || !agents.some((a) => a.id === topupAgent && a.status !== 'revoked')}
+        busy={topup.isPending}
+      >
         Create Sandbox top-up
       </Button>
       <ErrorNotice error={topup.error} />
@@ -779,12 +836,18 @@ function BankAction({
   address,
   enabled,
   onRefresh,
+  recipients = [],
+  senderName,
+  onCancel,
 }: {
   capability: Capability;
   agent: string;
   address: string;
   enabled: boolean;
   onRefresh: () => void;
+  recipients?: { address: string; name: string }[];
+  senderName?: string;
+  onCancel?: () => void;
 }) {
   const props = capability.inputSchema.properties as Record<string, SchemaProperty>;
   const [values, setValues] = useState<Record<string, string>>(() =>
@@ -793,6 +856,8 @@ function BankAction({
   const [quote, setQuote] = useState<Quote>(),
     [purchase, setPurchase] = useState<Purchase>(),
     [invocation, setInvocation] = useState<Invocation>();
+  const [recipient, setRecipient] = useState('');
+  const transfer = capability.id === 'bank_transfer';
   const input = () =>
     Object.fromEntries(
       Object.entries(values).map(([k, v]) => [
@@ -843,6 +908,9 @@ function BankAction({
     <section className="panel bank-section bank-action" aria-label="Bank action">
       <h2>{capability.name}</h2>
       <p>{capability.description}</p>
+      {transfer && (
+        <p>From {senderName ?? 'the acting agent'}. The recipient must be allowed by your Bank policy.</p>
+      )}
       <form
         className="bank-form"
         onSubmit={(e) => {
@@ -853,12 +921,35 @@ function BankAction({
         {Object.entries(props).map(([k, p]) => (
           <Field
             key={k}
-            label={`${label(k)}${/amount|collateral|security|discount|installment|max_trade|daily_trade_limit|min_output|min_assets/.test(k) ? ' (cUSD / test-token units)' : k.includes('shares') ? ' (12-decimal shares)' : ''}`}
+            label={`${transfer && k === 'to' ? 'Recipient agent' : label(k)}${/amount|collateral|security|discount|installment|max_trade|daily_trade_limit|min_output|min_assets/.test(k) ? ' (cUSD / test-token units)' : k.includes('shares') ? ' (12-decimal shares)' : ''}`}
             hint={p.description}
           >
-            {p.enum || p.type === 'boolean' ? (
+            {transfer && k === 'to' ? (
+              <select
+                aria-label="Recipient agent"
+                required
+                value={recipient}
+                disabled={Boolean(purchase) || confirm.isPending || preview.isPending}
+                onChange={(e) => {
+                  setRecipient(e.target.value);
+                  setValues({ ...values, to: e.target.value === 'custom' ? '' : e.target.value });
+                  setQuote(undefined);
+                }}
+              >
+                <option value="" disabled>
+                  Choose a recipient
+                </option>
+                {recipients.map((r) => (
+                  <option key={r.address} value={r.address}>
+                    {r.name}
+                  </option>
+                ))}
+                <option value="custom">Another wallet address</option>
+              </select>
+            ) : p.enum || p.type === 'boolean' ? (
               <select
                 required
+                disabled={Boolean(purchase) || confirm.isPending || preview.isPending}
                 value={values[k]}
                 onChange={(e) => {
                   setValues({ ...values, [k]: e.target.value });
@@ -877,6 +968,7 @@ function BankAction({
             ) : (
               <input
                 required
+                disabled={Boolean(purchase) || confirm.isPending || preview.isPending}
                 value={values[k]}
                 type={p.type === 'integer' || p.type === 'number' ? 'number' : 'text'}
                 min={p.minimum}
@@ -889,11 +981,30 @@ function BankAction({
             )}
           </Field>
         ))}
-        <Button busy={preview.isPending} disabled={!enabled}>
+        {transfer && recipient === 'custom' && (
+          <Field label="Recipient wallet address">
+            <input
+              required
+              value={values.to}
+              placeholder="0x…"
+              disabled={Boolean(purchase) || confirm.isPending || preview.isPending}
+              onChange={(e) => {
+                setValues({ ...values, to: e.target.value });
+                setQuote(undefined);
+              }}
+            />
+          </Field>
+        )}
+        <Button busy={preview.isPending} disabled={!enabled || Boolean(purchase) || confirm.isPending}>
           Review action and fees
         </Button>
         <ErrorNotice error={preview.error ?? confirm.error} />
       </form>
+      {onCancel && !purchase && !confirm.isPending && (
+        <Button variant="secondary" onClick={onCancel}>
+          Cancel transfer
+        </Button>
+      )}
       {quote && (
         <div className="bank-receipt">
           <h3>Confirm {capability.name}</h3>

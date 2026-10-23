@@ -116,6 +116,10 @@
 .bank-form > .field {
   flex: 1 1 240px;
   max-width: 600px;
+  margin-bottom: 0;
+}
+.bank-transfer-intro > .button {
+  margin-top: 20px;
 }
 .bank-form > button {
   align-self: end;
