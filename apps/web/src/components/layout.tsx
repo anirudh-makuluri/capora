@@ -112,7 +112,6 @@ function WorkspaceLayout() {
             <NavLink to="/developers" onClick={() => setMobileOpen(false)} className="nav-link">
               <Code2 size={18} />
               <span>Developers</span>
-              <ArrowUpRight size={14} />
             </NavLink>
           </nav>
         </div>

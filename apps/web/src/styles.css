@@ -1835,6 +1835,13 @@ kbd {
   font-size: 12px;
   color: var(--muted);
 }
+.agent-wallet-controls {
+  display: flex;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 14px;
+}
 .agent-spending {
   margin: 22px 0;
   padding-top: 19px;
