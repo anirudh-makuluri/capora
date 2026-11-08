@@ -1,5 +1,7 @@
 # Capora
 
+Licensed under the [MIT License](LICENSE). Third-party dependencies and external data remain subject to their respective licenses and terms.
+
 **The marketplace for machine capabilities.**
 
 **All capabilities on Capora are for demonstration purposes only.** Capora is a hackathon prototype. Capora Bank uses demo cUSD escrow on Base Sepolia; PayPal Sandbox is exclusively for top-ups. These simulated funds do not represent real USD or commercial sales.
