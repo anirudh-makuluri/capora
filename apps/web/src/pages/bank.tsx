@@ -36,7 +36,6 @@ interface Entity {
   terms: string;
 }
 interface BankData {
-  cashflow: { receivedUnits: string; sentUnits: string; indexedAt: string | null } | null;
   configured: boolean;
   configurationError: string | null;
   contracts: Record<string, string | boolean | number> | null;
@@ -214,7 +213,6 @@ export function Bank() {
       )}
       {tab === 'Wallets' && (
         <>
-          <CashflowChart cashflow={bank.data?.cashflow ?? null} />
           <section className="bank-grid">
             {(bank.data?.accounts ?? [])
               .filter((account) => account.agent_id)
@@ -1069,36 +1067,6 @@ function EarningsChart({ rows }: { rows: BankData['earnings'] }) {
       <p>
         Net {displayUnits(gross - fees)} cUSD · fees {displayUnits(fees)} cUSD
       </p>
-    </figure>
-  );
-}
-function CashflowChart({ cashflow }: { cashflow: BankData['cashflow'] }) {
-  if (!cashflow?.indexedAt)
-    return (
-      <p className="muted">
-        Confirmed wallet inflows and spending appear after the chain indexer processes your first transfer.
-      </p>
-    );
-  const received = BigInt(cashflow.receivedUnits),
-    sent = BigInt(cashflow.sentUnits),
-    total = received + sent;
-  return (
-    <figure className="panel bank-section bank-chart">
-      <figcaption>Confirmed indexed cUSD flows across your wallets</figcaption>
-      {total > 0n && (
-        <div
-          role="img"
-          aria-label={`${displayUnits(received)} cUSD received; ${displayUnits(sent)} cUSD sent`}
-        >
-          <span style={{ width: `${Number((received * 10000n) / total) / 100}%` }} />
-          <span />
-        </div>
-      )}
-      <p>
-        Received {displayUnits(received)} cUSD · sent {displayUnits(sent)} cUSD. Inflows include top-ups and
-        earnings; internal transfers are excluded.
-      </p>
-      <small>Refreshed {new Date(cashflow.indexedAt).toLocaleString()}.</small>
     </figure>
   );
 }

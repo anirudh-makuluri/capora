@@ -447,10 +447,13 @@ export async function resolveApproval(env: Env, userId: string, purchaseId: stri
   return current.status === 'approved' ? settlePayment(env, purchaseId, row.agent.id) : current;
 }
 export async function cancelPurchase(env: Env, purchaseId: string, agentId: string) {
+  const initial = await getPurchase(env, purchaseId, agentId);
+  if (initial.status === 'rejected') return initial;
   const lease = await acquirePaymentLease(env, purchaseId);
   if (!lease) throw new DomainError('PAYMENT_BUSY', 'Payment is processing. Try again shortly.', 409);
   try {
     const purchase = await getPurchase(env, purchaseId, agentId);
+    if (purchase.status === 'rejected') return purchase;
     if (!['pending_approval', 'approved', 'payment_pending'].includes(purchase.status))
       throw new DomainError('INVALID_STATE', 'This purchase cannot be cancelled.');
     if (purchase.orderId && purchase.paymentMode === 'sandbox') {
@@ -471,32 +474,53 @@ export async function cancelPurchase(env: Env, purchaseId: string, agentId: stri
         'Confirm the payment outcome before releasing the reservation.',
         409,
       );
-    const escrowIntent = await env.DB.prepare(
-      "SELECT id FROM bank_transactions WHERE id LIKE ? AND state IN ('submitting','pending','confirmed','manual_review')",
+    const escrow = await env.DB.prepare(
+      'SELECT state,funding_tx,deadline FROM bank_escrows WHERE purchase_id=?',
     )
-      .bind(`escrow:${purchaseId}:%`)
+      .bind(purchaseId)
+      .first<{ state: string; funding_tx: string | null; deadline: number }>();
+    const expiredUnfunded =
+      escrow?.state === 'approved' &&
+      escrow.funding_tx === null &&
+      escrow.deadline <= Math.floor(Date.now() / 1000);
+    // D1 limits LIKE/GLOB pattern complexity; a literal prefix also avoids treating
+    // the underscores in purchase IDs as wildcard characters.
+    const escrowPrefix = `escrow:${purchaseId}:`;
+    const escrowIntent = await env.DB.prepare(
+      `SELECT id FROM bank_transactions WHERE substr(id,1,?) = ? AND id != ?
+       AND (state IN ('submitting','pending','confirmed','manual_review') OR tx_hash IS NOT NULL
+         OR (state='prepared' AND ?=0))`,
+    )
+      .bind(escrowPrefix.length, escrowPrefix, `escrow:${purchaseId}:approve`, expiredUnfunded ? 1 : 0)
       .first();
-    if (escrowIntent)
+    if (
+      escrowIntent ||
+      (escrow && (escrow.funding_tx !== null || !['approved', 'cancelled'].includes(escrow.state)))
+    )
       throw new DomainError(
         'PAYMENT_RECONCILIATION_REQUIRED',
         'A chain funding intent already exists. Reconcile or refund it before releasing the reservation.',
         409,
       );
     const now = new Date().toISOString();
-    const db = drizzle(env.DB);
-    await db.batch([
-      db
-        .update(purchases)
-        .set({ status: 'rejected', approvalUrl: null, updatedAt: now })
-        .where(eq(purchases.id, purchaseId)),
-      db
-        .update(approvals)
-        .set({ status: 'rejected', resolvedAt: now })
-        .where(eq(approvals.purchaseId, purchaseId)),
-      db
-        .update(transactions)
-        .set({ status: 'cancelled', updatedAt: now })
-        .where(eq(transactions.purchaseId, purchaseId)),
+    await env.DB.batch([
+      env.DB.prepare(
+        "UPDATE purchases SET status='rejected',approval_url=NULL,error=NULL,updated_at=? WHERE id=?",
+      ).bind(now, purchaseId),
+      env.DB.prepare("UPDATE approvals SET status='rejected',resolved_at=? WHERE purchase_id=?").bind(
+        now,
+        purchaseId,
+      ),
+      env.DB.prepare("UPDATE transactions SET status='cancelled',updated_at=? WHERE purchase_id=?").bind(
+        now,
+        purchaseId,
+      ),
+      env.DB.prepare(
+        "UPDATE bank_escrows SET state='cancelled',updated_at=? WHERE purchase_id=? AND state='approved' AND funding_tx IS NULL",
+      ).bind(now, purchaseId),
+      env.DB.prepare(
+        "UPDATE bank_transactions SET state='failed',error='Purchase cancelled before funding.',updated_at=? WHERE id=? AND state='prepared' AND tx_hash IS NULL",
+      ).bind(now, `escrow:${purchaseId}:fund`),
     ]);
     return getPurchase(env, purchaseId, agentId);
   } finally {

@@ -146,6 +146,60 @@ describe('Real provider contracts', () => {
       ).data,
     ).toMatchObject({ observations: [{ year: '2024', value: null }] });
   });
+  it.each([
+    { startYear: 2099, endYear: 2100, years: [] },
+    { startYear: 2023, endYear: 2024, years: ['2024', '2023'] },
+  ])(
+    'enforces requested World Bank years $startYear–$endYear when the source ignores its filter',
+    async ({ startYear, endYear, years }) => {
+      vi.stubGlobal(
+        'fetch',
+        vi
+          .fn()
+          .mockResolvedValue(
+            new Response(
+              JSON.stringify([
+                { total: 66 },
+                ['2025', '2024', '2023', '1960', 'unknown'].map((date) => ({
+                  country: { id: 'JP' },
+                  indicator: { id: 'SL.UEM.TOTL.ZS' },
+                  date,
+                  value: date === '2023' ? null : 2.5,
+                  unit: '',
+                  obs_status: '',
+                })),
+              ]),
+            ),
+          ),
+      );
+      const result = await invokeBuiltin('builtin://worldbank_indicators', {
+        country: 'JPN',
+        indicator: 'SL.UEM.TOTL.ZS',
+        startYear,
+        endYear,
+      });
+      expect(result.data).toMatchObject({
+        total: years.length,
+        observations: years.map((year) => ({ year })),
+      });
+      if (years.includes('2023'))
+        expect(
+          (result.data as { observations: { year: string; value: unknown }[] }).observations.find(
+            (row) => row.year === '2023',
+          )?.value,
+        ).toBeNull();
+    },
+  );
+  it('reports zero World Bank observations when the source has no records', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify([{ total: 0 }, null]))));
+    const result = await invokeBuiltin('builtin://worldbank_indicators', {
+      country: 'USA',
+      indicator: 'SP.POP.TOTL',
+      startYear: 2099,
+      endYear: 2100,
+    });
+    expect(result.data).toEqual({ total: 0, observations: [] });
+  });
   it.each([302, 429, 403, 500])('returns source HTTP %s failures instead of fixtures', async (status) => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('private upstream message', { status })));
     await expect(

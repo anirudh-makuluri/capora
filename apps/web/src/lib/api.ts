@@ -17,13 +17,33 @@ export async function api<T>(path: string, options?: { method?: string; body?: u
       ? { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(options.body) }
       : {}),
   });
-  const body = await response.json();
-  if (!response.ok)
+  let body;
+  try {
+    body = await response.json();
+  } catch {
+    // An edge failure can return HTML after a mutation has already reached the server.
+    // Preserve the uncertain outcome; never replay a purchase automatically.
+    const readOnly = !options?.method || ['GET', 'HEAD'].includes(options.method.toUpperCase());
     throw new ApiError(
-      body.error?.code ?? body.code ?? 'REQUEST_FAILED',
-      body.error?.message ?? body.message ?? 'The request failed.',
+      response.status >= 500 ? 'SERVICE_UNAVAILABLE' : 'INVALID_RESPONSE',
+      readOnly
+        ? 'Capora returned an unreadable response. Please try again shortly.'
+        : 'Capora could not confirm the result. Check the existing transaction or refresh its status before trying again.',
       response.status,
     );
+  }
+  if (!response.ok) {
+    const envelope = body && typeof body === 'object' ? (body as Record<string, unknown>) : {};
+    const details =
+      envelope.error && typeof envelope.error === 'object'
+        ? (envelope.error as Record<string, unknown>)
+        : envelope;
+    throw new ApiError(
+      typeof details.code === 'string' ? details.code : 'REQUEST_FAILED',
+      typeof details.message === 'string' ? details.message : 'The request failed.',
+      response.status,
+    );
+  }
   return body as T;
 }
 export const useSession = () =>

@@ -174,7 +174,7 @@ export async function resolveEscrow(
   const row = await env.DB.prepare('SELECT * FROM bank_escrows WHERE purchase_id=?')
     .bind(purchaseId)
     .first<Escrow>();
-  if (!row || ['released', 'refunded', 'manual_review'].includes(row.state)) return;
+  if (!row || ['released', 'refunded', 'manual_review', 'cancelled'].includes(row.state)) return;
   const cfg = configuration(env);
   await env.DB.prepare('UPDATE bank_escrows SET state=?,result_hash=?,updated_at=? WHERE purchase_id=?')
     .bind(
