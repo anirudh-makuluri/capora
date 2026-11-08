@@ -36,7 +36,6 @@ interface Entity {
   terms: string;
 }
 interface BankData {
-  cashflow: { receivedUnits: string; sentUnits: string; indexedAt: string | null } | null;
   configured: boolean;
   configurationError: string | null;
   contracts: Record<string, string | boolean | number> | null;
@@ -97,7 +96,13 @@ export function Bank() {
     [agentId, setAgentId] = useState(params.get('agent') ?? ''),
     [operation, setOperation] = useState(''),
     [selectedEntity, setSelectedEntity] = useState('');
-  const bank = useQuery({ queryKey: ['bank'], queryFn: () => api<BankData>('/bank'), refetchInterval: 5000 });
+  const bank = useQuery({
+    queryKey: ['bank'],
+    queryFn: () => api<BankData>('/bank'),
+    staleTime: 15_000,
+    retry: false,
+    refetchInterval: (query) => (query.state.status === 'error' ? false : 30_000),
+  });
   const { data: capabilities } = useCapabilities('category=Capora%20Bank');
   const agents = dashboard?.agents ?? [],
     agent = agentId || agents[0]?.id || '';
@@ -128,13 +133,17 @@ export function Bank() {
         `/bank/agents/${agent}/${bank.data?.entities.find((e) => e.address === selectedEntity)?.kind === 'fund' ? 'fund_details' : 'chit_status'}?address=${selectedEntity}`,
       ),
     enabled: Boolean(agent && selectedEntity && bank.data?.configured),
-    refetchInterval: 5000,
+    staleTime: 15_000,
+    retry: false,
+    refetchInterval: (query) => (query.state.status === 'error' ? false : 30_000),
   });
   const loans = useQuery({
     queryKey: ['bank-loans', agent],
     queryFn: () => api<Record<string, unknown>[]>(`/bank/agents/${agent}/list_loans`),
     enabled: tab === 'Lending' && Boolean(agent && bank.data?.configured),
-    refetchInterval: 5000,
+    staleTime: 15_000,
+    retry: false,
+    refetchInterval: (query) => (query.state.status === 'error' ? false : 30_000),
   });
   const refresh = () => {
     void client.invalidateQueries({ queryKey: ['bank'] });
@@ -214,7 +223,6 @@ export function Bank() {
       )}
       {tab === 'Wallets' && (
         <>
-          <CashflowChart cashflow={bank.data?.cashflow ?? null} />
           <section className="bank-grid">
             {(bank.data?.accounts ?? [])
               .filter((account) => account.agent_id)
@@ -1069,36 +1077,6 @@ function EarningsChart({ rows }: { rows: BankData['earnings'] }) {
       <p>
         Net {displayUnits(gross - fees)} cUSD · fees {displayUnits(fees)} cUSD
       </p>
-    </figure>
-  );
-}
-function CashflowChart({ cashflow }: { cashflow: BankData['cashflow'] }) {
-  if (!cashflow?.indexedAt)
-    return (
-      <p className="muted">
-        Confirmed wallet inflows and spending appear after the chain indexer processes your first transfer.
-      </p>
-    );
-  const received = BigInt(cashflow.receivedUnits),
-    sent = BigInt(cashflow.sentUnits),
-    total = received + sent;
-  return (
-    <figure className="panel bank-section bank-chart">
-      <figcaption>Confirmed indexed cUSD flows across your wallets</figcaption>
-      {total > 0n && (
-        <div
-          role="img"
-          aria-label={`${displayUnits(received)} cUSD received; ${displayUnits(sent)} cUSD sent`}
-        >
-          <span style={{ width: `${Number((received * 10000n) / total) / 100}%` }} />
-          <span />
-        </div>
-      )}
-      <p>
-        Received {displayUnits(received)} cUSD · sent {displayUnits(sent)} cUSD. Inflows include top-ups and
-        earnings; internal transfers are excluded.
-      </p>
-      <small>Refreshed {new Date(cashflow.indexedAt).toLocaleString()}.</small>
     </figure>
   );
 }

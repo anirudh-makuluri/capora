@@ -41,7 +41,7 @@ export function catalogStatements(ownerId: string, now: string): string[] {
            (SELECT 1 FROM providers WHERE id=capabilities.provider_id AND user_id=${sqlValue(ownerId)} AND name='Capora')))
        AND (capabilities.provider_id=excluded.provider_id OR NOT EXISTS
          (SELECT 1 FROM bank_escrows e JOIN purchases p ON p.id=e.purchase_id
-          WHERE p.capability_id=capabilities.id AND e.state NOT IN ('released','refunded')))
+          WHERE p.capability_id=capabilities.id AND e.state NOT IN ('released','refunded','cancelled')))
        AND (capabilities.provider_id IS NOT excluded.provider_id OR ${columns.map((column) => `capabilities.${column} IS NOT excluded.${column}`).join(' OR ')});`,
       ];
     }),

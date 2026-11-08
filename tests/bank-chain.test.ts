@@ -24,6 +24,7 @@ import { chainKey } from '../apps/worker/src/bank/chain';
 import { displayUnits } from '../packages/bank/src/index';
 import { CAPORA_BANK_PROVIDER_ID } from '../packages/config/src/index';
 import { saveMarketplaceFee } from '../apps/worker/src/services/marketplace-fees';
+import { bankSchemas } from '../apps/worker/src/bank/capabilities';
 import type { Env } from '../apps/worker/src/env';
 import type { Purchase, Quote, Invocation } from '../packages/types/src/index';
 let node: ChildProcess,
@@ -37,6 +38,7 @@ let node: ChildProcess,
 let deployment: Record<string, Address>;
 let captureCalls = 0,
   ordersCreated = 0;
+const exercisedBankOperations = new Set<string>();
 let plannerProposal: unknown = {
   action: 'hold',
   reason: 'No fresh external signal; hold the bounded test position.',
@@ -71,6 +73,7 @@ async function action(
     const current = await api<Invocation>(`/agents/${agentId}/invocations/${invocation.id}`);
     if (['completed', 'failed'].includes(current.status)) {
       expect(current.error, JSON.stringify(current)).toBeNull();
+      exercisedBankOperations.add(operation);
       return current;
     }
     await new Promise((r) => setTimeout(r, 30));
@@ -790,6 +793,137 @@ describe('Bank vertical slices on a real isolated local EVM; PayPal is an explic
     });
     expect(forged.status).toBe(401);
   }, 30000);
+  it('covers every catalogued Bank capability, including reads, liquidation, top-ups and default recovery', async () => {
+    await write(deployment.market, TestMarketAbi, 'setPrice', [2000000n]);
+    const wallet = await api<{ address: Address }>(`/bank/agents/${agentA}/provision`, {});
+    const db = await mf.getD1Database('DB');
+    const fund = await db
+      .prepare("SELECT address FROM bank_entities WHERE kind='fund' LIMIT 1")
+      .first<{ address: Address }>();
+    await action(
+      agentA,
+      'set_spending_policy',
+      {
+        destinations: [wallet.address],
+        max_investment_cents: 50000,
+        max_loan_cents: 50000,
+        max_chit_cents: 50000,
+      },
+      true,
+    );
+    for (const operation of [
+      'get_accounts',
+      'get_balance',
+      'get_transactions',
+      'get_treasury_summary',
+      'list_funds',
+      'list_loans',
+      'list_public_chits',
+    ]) {
+      const read = await action(agentA, operation, {});
+      expect(read.result).not.toBeNull();
+    }
+    for (const operation of ['fund_details', 'fund_performance'])
+      expect((await action(agentA, operation, { address: fund!.address })).result).not.toBeNull();
+    await action(
+      agentA,
+      'fund_controls',
+      { address: fund!.address, paused: true, subscriptions_open: false },
+      true,
+    );
+    expect(
+      await chain.readContract({ address: fund!.address, abi: ManagedFundAbi, functionName: 'paused' }),
+    ).toBe(true);
+
+    const maturity = Number((await chain.getBlock()).timestamp) + 3600;
+    const quote = await action(agentB, 'quote_loan', { collateral: '1', amount: '0.5', maturity });
+    expect(quote.result).toMatchObject({ maxBorrowUnits: '1000000', requestedUnits: '500000' });
+    const opened = await action(agentB, 'open_collateralized_loan', {
+      collateral: '1',
+      amount: '0.5',
+      maturity,
+    });
+    const loanId = (opened.result as { loanId: Hex }).loanId;
+    await action(agentB, 'add_collateral', { loan_id: loanId, amount: '0.1' });
+    expect((await action(agentB, 'loan_details', { loan_id: loanId })).result).toMatchObject({
+      collateralUnits: '1100000',
+      principalUnits: '500000',
+    });
+    // Respect the market's 20% circuit breaker while building an unhealthy local fixture.
+    for (const price of [1600000n, 1280000n, 1024000n, 819200n, 655360n, 524288n, 500000n])
+      await write(deployment.market, TestMarketAbi, 'setPrice', [price]);
+    await action(agentA, 'liquidate_loan', { loan_id: loanId, amount: '0.51' });
+    expect((await action(agentB, 'loan_details', { loan_id: loanId })).result).toMatchObject({
+      debtUnits: '0',
+    });
+    for (const price of [600000n, 720000n, 864000n, 1036800n, 1244160n, 1492992n, 1791590n, 2000000n])
+      await write(deployment.market, TestMarketAbi, 'setPrice', [price]);
+    await action(agentA, 'redeem_liquidity', { shares: '3', min_assets: '2.99' });
+
+    await write(deployment.riskToken, CaporaUSDAbi, 'mintOnce', [
+      chainKey('all-capabilities-collateral'),
+      wallet.address,
+      1000000n,
+    ]);
+    const terms = {
+      name: 'Capability coverage chit',
+      members: 2,
+      installment: '0.01',
+      max_discount_bps: 1000,
+      commission_bps: 0,
+      contribution_seconds: 60,
+      commit_seconds: 30,
+      reveal_seconds: 30,
+      grace_seconds: 30,
+      join_deadline: Number((await chain.getBlock()).timestamp) + 3600,
+    };
+    const created = await action(agentA, 'create_chit', terms, true);
+    const address = (created.result as { address: Address }).address;
+    await action(agentA, 'join_chit', { address, security: '0.1' });
+    await action(agentB, 'join_chit', { address, security: '0.1' });
+    await action(agentA, 'top_up_chit_security', { address, amount: '0.01' });
+    await action(agentA, 'top_up_chit_bond', { address, amount: '0.01' });
+    const state = await action(agentA, 'chit_status', { address });
+    expect(state.result).toMatchObject({ member: [true, false, 0, '20000', '110000'] });
+    await action(agentA, 'contribute', { address });
+    await advance(151);
+    const other = await api<{ address: Address }>(`/bank/agents/${agentB}/provision`, {});
+    await action(agentA, 'recover_chit_default', {
+      address,
+      member: other.address,
+      min_output: '0',
+      deadline: Number((await chain.getBlock()).timestamp) + 300,
+    });
+    expect(
+      await chain.readContract({
+        address,
+        abi: PublicChitAbi,
+        functionName: 'contributed',
+        args: [1n, other.address],
+      }),
+    ).toBe(true);
+    await action(agentA, 'finalize_chit', { address });
+
+    const unfilled = await action(
+      agentA,
+      'create_chit',
+      {
+        ...terms,
+        name: 'Cancelable capability coverage chit',
+        join_deadline: Number((await chain.getBlock()).timestamp) + 60,
+      },
+      true,
+    );
+    const unfilledAddress = (unfilled.result as { address: Address }).address;
+    await action(agentA, 'join_chit', { address: unfilledAddress, security: '0' });
+    await advance(61);
+    await action(agentA, 'cancel_unfilled_chit', { address: unfilledAddress });
+    await action(agentA, 'exit_chit', { address: unfilledAddress });
+    expect(
+      await chain.readContract({ address: unfilledAddress, abi: PublicChitAbi, functionName: 'canceled' }),
+    ).toBe(true);
+    expect([...exercisedBankOperations].sort()).toEqual(Object.keys(bankSchemas).sort());
+  }, 120000);
   it('indexes canonical escrow expiry refunds and wallet cash flows without duplicate events', async () => {
     const input = { text: 'Never invoked: eligible timeout refund' };
     const q = await api<Quote>(`/agents/${agentA}/quotes`, { capability_id: 'document_fingerprint', input });

@@ -132,6 +132,37 @@ afterEach(async () => {
 });
 
 describe('Bank capability ownership migration and catalog synchronization', () => {
+  it('repairs Bank list output schemas for existing catalogs once while preserving history and moderation', async () => {
+    const ids = ['bank_get_transactions', 'bank_list_funds', 'bank_list_loans', 'bank_list_public_chits'];
+    for (const id of ids)
+      await db
+        .prepare(
+          'UPDATE capabilities SET output_schema=\'{"type":"object"}\',version=7,enabled=0,success_count=4 WHERE id=?',
+        )
+        .bind(id)
+        .run();
+    await sync();
+    for (const id of ids) {
+      const row = await db
+        .prepare('SELECT output_schema,version,enabled,success_count FROM capabilities WHERE id=?')
+        .bind(id)
+        .first<{ output_schema: string; version: number; enabled: number; success_count: number }>();
+      expect(JSON.parse(row!.output_schema)).toEqual({ type: 'array', items: { type: 'object' } });
+      expect(row).toMatchObject({ version: 8, enabled: 0, success_count: 4 });
+    }
+    await sync();
+    for (const id of ids)
+      expect(await db.prepare('SELECT version FROM capabilities WHERE id=?').bind(id).first('version')).toBe(
+        8,
+      );
+    expect(
+      JSON.parse(
+        (await db
+          .prepare("SELECT output_schema FROM capabilities WHERE id='bank_get_accounts'")
+          .first('output_schema')) as string,
+      ),
+    ).toEqual({ type: 'object' });
+  });
   it('consolidates trusted built-ins, preserves moderation and usage, and is idempotent', async () => {
     await db
       .prepare(

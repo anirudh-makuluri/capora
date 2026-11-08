@@ -1,6 +1,6 @@
 import { DomainError } from '@capora/types';
 import type { CapabilityDefinition } from './types';
-import { object, array, record, records, sourceJson } from './shared';
+import { object, array, records, sourceJson } from './shared';
 
 export const worldbankIndicators: CapabilityDefinition = {
   metadata: {
@@ -55,20 +55,27 @@ export const worldbankIndicators: CapabilityDefinition = {
         'World Bank could not resolve this indicator query.',
         502,
       );
-    const data = {
-      total: Number(record(result[0]).total),
-      observations:
-        result[1] === null
-          ? []
-          : records(result[1]).map((item) => ({
+    // The source can ignore an unavailable date range and return its entire history.
+    // Never present those out-of-range observations as answers to this query.
+    const observations =
+      result[1] === null
+        ? []
+        : records(result[1])
+            .filter(
+              (item) =>
+                /^\d{4}$/.test(String(item.date)) &&
+                Number(item.date) >= Number(input.startYear) &&
+                Number(item.date) <= Number(input.endYear),
+            )
+            .map((item) => ({
               country: item.country,
               indicator: item.indicator,
               year: item.date,
               value: item.value,
               unit: item.unit,
               status: item.obs_status,
-            })),
-    };
+            }));
+    const data = { total: observations.length, observations };
     const source = 'World Bank';
     const sourceUrl = url.href;
     const license =

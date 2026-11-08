@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { isAddress } from 'viem';
-import { DomainError } from '@capora/types';
+import { DomainError, type JsonSchema } from '@capora/types';
 import { CAPORA_BANK_PROVIDER_ID } from '@capora/config';
 const amount = z.string().regex(/^(0|[1-9]\d{0,8})(\.\d{1,6})?$/);
 const shares = z.string().regex(/^(0|[1-9]\d{0,8})(\.\d{1,12})?$/);
@@ -130,6 +130,15 @@ export function bankOperation(endpoint: string): BankOperation {
 export function bankInput(operation: BankOperation, input: Record<string, unknown>): Record<string, unknown> {
   return bankSchemas[operation].parse(input);
 }
+const listOperations = new Set<BankOperation>([
+  'get_transactions',
+  'list_funds',
+  'list_loans',
+  'list_public_chits',
+]);
+export function bankOutputSchema(operation: BankOperation): JsonSchema {
+  return listOperations.has(operation) ? { type: 'array', items: { type: 'object' } } : { type: 'object' };
+}
 export function bankProviderStatement(ownerId: string, now: string, q: (v: unknown) => string) {
   return `INSERT INTO providers(id,user_id,name,description,reputation,created_at) VALUES(${q(CAPORA_BANK_PROVIDER_ID)},${q(ownerId)},'Capora Bank','Capora-operated capabilities and Base Sepolia financial services. TESTNET / SIMULATED FUNDS.',0,${q(now)}) ON CONFLICT DO NOTHING;`;
 }
@@ -138,7 +147,7 @@ export function bankCatalogStatements(ownerId: string, now: string, q: (v: unkno
   for (const [op, schema] of Object.entries(bankSchemas)) {
     const description = `Capora Bank: ${op.replaceAll('_', ' ')}. Base Sepolia only. cUSD is simulated USD, not redeemable. ${readOperations.has(op as BankOperation) ? 'Read-only, no service fee.' : 'Requires wallet ownership, an immutable quote and spending policy authorization. Contract fees are disclosed before execution.'}`;
     statements.push(
-      `INSERT INTO capabilities(id,provider_id,name,description,type,category,price_cents,currency,pricing_unit,input_schema,output_schema,endpoint,expected_latency_ms,tags,async,created_at) SELECT ${q(`bank_${op}`)},id,${q(`bank.${op}`)},${q(description)},'agent','Capora Bank',0,'USD','action',${q(z.toJSONSchema(schema))},${q({ type: 'object' })},${q(`bank://${op}`)},1000,'["bank","testnet","cUSD"]',${readOperations.has(op as BankOperation) ? 0 : 1},${q(now)} FROM providers WHERE id=${q(CAPORA_BANK_PROVIDER_ID)} AND user_id=${q(ownerId)} ON CONFLICT(id) DO UPDATE SET input_schema=excluded.input_schema,description=excluded.description,async=excluded.async WHERE capabilities.provider_id=excluded.provider_id AND capabilities.endpoint=excluded.endpoint;`,
+      `INSERT INTO capabilities(id,provider_id,name,description,type,category,price_cents,currency,pricing_unit,input_schema,output_schema,endpoint,expected_latency_ms,tags,async,created_at) SELECT ${q(`bank_${op}`)},id,${q(`bank.${op}`)},${q(description)},'agent','Capora Bank',0,'USD','action',${q(z.toJSONSchema(schema))},${q(bankOutputSchema(op as BankOperation))},${q(`bank://${op}`)},1000,'["bank","testnet","cUSD"]',${readOperations.has(op as BankOperation) ? 0 : 1},${q(now)} FROM providers WHERE id=${q(CAPORA_BANK_PROVIDER_ID)} AND user_id=${q(ownerId)} ON CONFLICT(id) DO UPDATE SET input_schema=excluded.input_schema,output_schema=excluded.output_schema,description=excluded.description,async=excluded.async,version=capabilities.version+1 WHERE capabilities.provider_id=excluded.provider_id AND capabilities.endpoint=excluded.endpoint AND (capabilities.input_schema IS NOT excluded.input_schema OR capabilities.output_schema IS NOT excluded.output_schema OR capabilities.description IS NOT excluded.description OR capabilities.async IS NOT excluded.async);`,
     );
   }
   return statements;

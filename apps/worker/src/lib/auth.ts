@@ -13,6 +13,14 @@ export function createAuth(env: Env) {
     baseURL: env.CAPORA_BASE_URL,
     basePath: '/api/auth',
     secret: env.SESSION_SECRET,
+    logger: {
+      level: 'error',
+      // Database errors can include bound session tokens. Request correlation IDs
+      // are logged by the API boundary; never serialize auth-library arguments.
+      log(level) {
+        console.error(JSON.stringify({ event: 'auth_library_error', level }));
+      },
+    },
     trustedOrigins: [env.CAPORA_BASE_URL],
     database: drizzleAdapter(drizzle(env.DB), {
       provider: 'sqlite',
