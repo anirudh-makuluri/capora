@@ -96,7 +96,13 @@ export function Bank() {
     [agentId, setAgentId] = useState(params.get('agent') ?? ''),
     [operation, setOperation] = useState(''),
     [selectedEntity, setSelectedEntity] = useState('');
-  const bank = useQuery({ queryKey: ['bank'], queryFn: () => api<BankData>('/bank'), refetchInterval: 5000 });
+  const bank = useQuery({
+    queryKey: ['bank'],
+    queryFn: () => api<BankData>('/bank'),
+    staleTime: 15_000,
+    retry: false,
+    refetchInterval: (query) => (query.state.status === 'error' ? false : 30_000),
+  });
   const { data: capabilities } = useCapabilities('category=Capora%20Bank');
   const agents = dashboard?.agents ?? [],
     agent = agentId || agents[0]?.id || '';
@@ -127,13 +133,17 @@ export function Bank() {
         `/bank/agents/${agent}/${bank.data?.entities.find((e) => e.address === selectedEntity)?.kind === 'fund' ? 'fund_details' : 'chit_status'}?address=${selectedEntity}`,
       ),
     enabled: Boolean(agent && selectedEntity && bank.data?.configured),
-    refetchInterval: 5000,
+    staleTime: 15_000,
+    retry: false,
+    refetchInterval: (query) => (query.state.status === 'error' ? false : 30_000),
   });
   const loans = useQuery({
     queryKey: ['bank-loans', agent],
     queryFn: () => api<Record<string, unknown>[]>(`/bank/agents/${agent}/list_loans`),
     enabled: tab === 'Lending' && Boolean(agent && bank.data?.configured),
-    refetchInterval: 5000,
+    staleTime: 15_000,
+    retry: false,
+    refetchInterval: (query) => (query.state.status === 'error' ? false : 30_000),
   });
   const refresh = () => {
     void client.invalidateQueries({ queryKey: ['bank'] });

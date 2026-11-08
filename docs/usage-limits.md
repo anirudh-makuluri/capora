@@ -35,6 +35,12 @@ pnpm --filter @capora/worker exec wrangler d1 execute capora-db --remote --comma
 
 To resume, change `blocked` back to `0`. This does not clear byte/operation reservations. Never reset reservations to bypass a limit; first reconcile actual bucket storage and account-wide billed usage. Keep this table intact during migrations, seeding, redeployments, and rollbacks.
 
+## Dashboard reads on Workers Free
+
+The dashboard and Bank summary/detail queries refresh every 30 seconds while visible, reuse results for 15 seconds, and stop periodic polling after an error. Mutations invalidate their relevant queries immediately, and active purchase/invocation status checks retain their shorter intervals. This reduces idle read traffic; it is not an account-wide quota guarantee.
+
+On November 8, 2026, the hosted account exhausted D1's Free daily row-read allowance. Cloudflare rejected reads with error 7500 and reported that reads could resume after the midnight UTC reset. A healthy `/api/health` response does not prove database-backed routes are available. Avoid leaving older dashboard builds polling every two seconds; reload them after this release. The hosting plan remains Free.
+
 ## Account-wide boundaries
 
 R2's free allowances apply to the entire account. These guards cover Capora's Worker calls, not manual dashboard/CLI/S3 operations, other buckets, other Workers, or administrative changes that bypass this source. Such activity can consume the remaining account allowance. Cloudflare does not provide a documented R2 hard dollar cap; billing alerts are notifications, not shutdown mechanisms.

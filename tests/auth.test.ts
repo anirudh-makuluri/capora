@@ -1,4 +1,6 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createAuth } from '../apps/worker/src/lib/auth';
+import type { Env } from '../apps/worker/src/env';
 import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
 import { readFile, readdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -8,6 +10,22 @@ let mf: Miniflare;
 const base = 'https://capora.test';
 const password = 'auth-test-password-only-2026';
 const secret = 'isolated-test-session-secret-at-least-32-characters';
+it('does not log authentication query parameters or nested error details', async () => {
+  const auth = createAuth(await mf.getBindings<Env>());
+  const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+  try {
+    Reflect.apply(auth.options.logger!.log!, undefined, [
+      'error',
+      'Failed query with secret-session-token',
+      new Error('params: secret-session-token'),
+    ]);
+    expect(log).toHaveBeenCalledExactlyOnceWith(
+      JSON.stringify({ event: 'auth_library_error', level: 'error' }),
+    );
+  } finally {
+    log.mockRestore();
+  }
+});
 async function send(path: string, body?: unknown, cookie = '', origin = base, ip = '192.0.2.1') {
   return mf.dispatchFetch(`${base}/api${path}`, {
     method: body === undefined ? 'GET' : 'POST',

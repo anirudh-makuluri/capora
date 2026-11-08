@@ -54,7 +54,13 @@ export const useSession = () =>
     staleTime: 5_000,
   });
 export const useDashboard = () =>
-  useQuery({ queryKey: ['dashboard'], queryFn: () => api<Dashboard>('/dashboard'), refetchInterval: 2000 });
+  useQuery({
+    queryKey: ['dashboard'],
+    queryFn: () => api<Dashboard>('/dashboard'),
+    staleTime: 15_000,
+    retry: false,
+    refetchInterval: (query) => (query.state.status === 'error' ? false : 30_000),
+  });
 export const useCapabilities = (search = '') =>
   useQuery({
     queryKey: ['capabilities', search],
