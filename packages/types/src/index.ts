@@ -234,6 +234,20 @@ export interface Activity {
   entityId: string | null;
   createdAt: string;
 }
+export interface WorkspaceSummary {
+  agents: Pick<Agent, 'id' | 'name' | 'status' | 'budget'>[];
+  providers: Pick<Provider, 'id' | 'name'>[];
+  paymentMode: 'demo' | 'sandbox';
+  approvalCount: number;
+}
+export interface TransactionPage {
+  purchases: Purchase[];
+  invocations: Invocation[];
+  hasMore: boolean;
+  stats: { totalSpendCents: number; spentTodayCents: number };
+  completedCount: number;
+  approvalCount: number;
+}
 export interface Dashboard {
   agents: Agent[];
   purchases: Purchase[];

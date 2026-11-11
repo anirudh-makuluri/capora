@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Copy, ExternalLink, RefreshCw, Wallet, ArrowUpRight } from 'lucide-react';
 import { displayUnits, units, unitsToCents, explorer } from '@capora/bank';
 import type { Agent, Capability, Quote, Purchase, Invocation } from '@capora/types';
-import { api, useDashboard, useCapabilities } from '../lib/api';
+import { api, useWorkspace, useCapabilities } from '../lib/api';
 import { Button, Badge, Field, ErrorNotice, Empty, Status, CodeBlock, Skeleton } from '../components/ui';
 import { PurchaseActions } from '../components/purchase-actions';
 import './bank.css';
@@ -90,15 +90,15 @@ function TxLink({ hash }: { hash: string | null }) {
 }
 export function Bank() {
   const client = useQueryClient(),
-    { data: dashboard } = useDashboard(),
+    { data: dashboard } = useWorkspace(),
     [params, setParams] = useSearchParams();
   const [tab, setTab] = useState('Wallets'),
     [agentId, setAgentId] = useState(params.get('agent') ?? ''),
     [operation, setOperation] = useState(''),
     [selectedEntity, setSelectedEntity] = useState('');
   const bank = useQuery({
-    queryKey: ['bank'],
-    queryFn: () => api<BankData>('/bank'),
+    queryKey: ['bank', tab],
+    queryFn: () => api<BankData>(`/bank?view=${encodeURIComponent(tab)}`),
     staleTime: 15_000,
     retry: false,
     refetchInterval: (query) => (query.state.status === 'error' ? false : 30_000),
@@ -132,7 +132,9 @@ export function Bank() {
       api<Record<string, unknown>>(
         `/bank/agents/${agent}/${bank.data?.entities.find((e) => e.address === selectedEntity)?.kind === 'fund' ? 'fund_details' : 'chit_status'}?address=${selectedEntity}`,
       ),
-    enabled: Boolean(agent && selectedEntity && bank.data?.configured),
+    enabled: Boolean(
+      agent && selectedEntity && ['Funds', 'Public chits'].includes(tab) && bank.data?.configured,
+    ),
     staleTime: 15_000,
     retry: false,
     refetchInterval: (query) => (query.state.status === 'error' ? false : 30_000),
@@ -484,7 +486,7 @@ export function Bank() {
             busy={action.isPending}
             onClick={() => action.mutate({ path: '/bank/reconcile' })}
           >
-            Reconcile pending actions
+            Queue reconciliation
           </Button>
         </section>
       )}
@@ -639,7 +641,7 @@ function TopUpForm({
   onRefresh,
 }: {
   agent: string;
-  agents: Agent[];
+  agents: Pick<Agent, 'id' | 'name' | 'status'>[];
   enabled: boolean;
   onRefresh: () => void;
 }) {

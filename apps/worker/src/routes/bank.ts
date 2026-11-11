@@ -8,7 +8,7 @@ import { ensureAccount, balance, accountIntent, type BankAccount } from '../bank
 import { createTopUp, ownedTopUp, reconcileTopUp, paypalWebhook } from '../bank/topups';
 import { bankRead } from '../bank/read';
 import { merchantEarnings } from '../bank/escrow';
-import { bankKeeper } from '../bank/keeper';
+import { enqueueMaintenance } from '../services/maintenance';
 import { audit } from '../lib/audit';
 import { scheduleSchema, configureStrategy, runStrategy } from '../bank/strategy';
 import { entityRecord } from '../bank/read';
@@ -23,6 +23,10 @@ publicBankRoutes.post('/paypal/webhook', async (c) =>
 export const bankRoutes = new Hono<AppEnv>();
 bankRoutes.get('/', async (c) => {
   const userId = c.get('userId');
+  const view = z
+    .enum(['all', 'Wallets', 'Funds', 'Lending', 'Public chits', 'Policy', 'Activity', 'Earnings'])
+    .parse(c.req.query('view') ?? 'all');
+  const wants = (...sections: string[]) => view === 'all' || sections.includes(view);
   const agents = (
     await c.env.DB.prepare('SELECT id FROM agents WHERE user_id=?').bind(userId).all<{ id: string }>()
   ).results;
@@ -44,11 +48,14 @@ bankRoutes.get('/', async (c) => {
   const accounts = await c.env.DB.prepare('SELECT * FROM bank_accounts WHERE user_id=?')
     .bind(userId)
     .all<BankAccount>();
+  let client: ReturnType<typeof assertChain> | undefined;
   const balances = await Promise.all(
     accounts.results.map(async (a) => {
-      if (!configured) return { ...a, balance: null };
+      if (!configured || !wants(a.agent_id ? 'Wallets' : 'Earnings') || !a.address)
+        return { ...a, balance: null };
       try {
-        return await balance(c.env, a);
+        client ??= assertChain(c.env);
+        return await balance(c.env, a, await client);
       } catch (e) {
         return {
           ...a,
@@ -59,55 +66,29 @@ bankRoutes.get('/', async (c) => {
     }),
   );
   const [transactions, topups, entities, positions, policies, earnings] = await Promise.all([
-    c.env.DB.prepare(
-      'SELECT t.id,t.account_id,t.purpose,t.state,t.tx_hash,t.error,t.created_at FROM bank_transactions t JOIN bank_accounts a ON a.id=t.account_id WHERE a.user_id=? ORDER BY t.created_at DESC LIMIT 100',
-    )
-      .bind(userId)
-      .all(),
-    c.env.DB.prepare('SELECT * FROM bank_topups WHERE user_id=? ORDER BY created_at DESC LIMIT 30')
-      .bind(userId)
-      .all(),
-    c.env.DB.prepare('SELECT * FROM bank_entities ORDER BY created_at DESC LIMIT 100').all(),
+    wants('Activity')
+      ? c.env.DB.prepare(
+          'SELECT t.id,t.account_id,t.purpose,t.state,t.tx_hash,t.error,t.created_at FROM bank_transactions t JOIN bank_accounts a ON a.id=t.account_id WHERE a.user_id=? ORDER BY t.created_at DESC LIMIT 100',
+        )
+          .bind(userId)
+          .all()
+      : { results: [] },
+    wants('Wallets')
+      ? c.env.DB.prepare('SELECT * FROM bank_topups WHERE user_id=? ORDER BY created_at DESC LIMIT 30')
+          .bind(userId)
+          .all()
+      : { results: [] },
+    wants('Funds', 'Public chits')
+      ? c.env.DB.prepare('SELECT * FROM bank_entities ORDER BY created_at DESC LIMIT 100').all()
+      : { results: [] },
     c.env.DB.prepare('SELECT p.* FROM bank_positions p JOIN agents a ON a.id=p.agent_id WHERE a.user_id=?')
       .bind(userId)
       .all(),
     c.env.DB.prepare('SELECT p.* FROM bank_policies p JOIN agents a ON a.id=p.agent_id WHERE a.user_id=?')
       .bind(userId)
       .all(),
-    merchantEarnings(c.env, userId),
+    wants('Earnings') ? merchantEarnings(c.env, userId) : [],
   ]);
-  let cashflow: { receivedUnits: string; sentUnits: string; indexedAt: string | null } | null = null;
-  if (configured) {
-    const cfg = configuration(c.env),
-      owned = new Set(accounts.results.filter((a) => a.address).map((a) => a.address.toLowerCase()));
-    const events = await c.env.DB.prepare(
-      "SELECT data,created_at FROM bank_events WHERE source='chain' ORDER BY created_at DESC LIMIT 1000",
-    ).all<{ data: string; created_at: string }>();
-    let received = 0n,
-      sent = 0n;
-    for (const event of events.results) {
-      const log = JSON.parse(event.data) as {
-        address: string;
-        eventName?: string;
-        args?: { from?: string; to?: string; value?: string };
-      };
-      if (
-        log.address.toLowerCase() !== cfg.token.toLowerCase() ||
-        log.eventName !== 'Transfer' ||
-        !log.args?.value
-      )
-        continue;
-      const from = owned.has(log.args.from?.toLowerCase() ?? ''),
-        to = owned.has(log.args.to?.toLowerCase() ?? '');
-      if (to && !from) received += BigInt(log.args.value);
-      if (from && !to) sent += BigInt(log.args.value);
-    }
-    cashflow = {
-      receivedUnits: received.toString(),
-      sentUnits: sent.toString(),
-      indexedAt: events.results[0]?.created_at ?? null,
-    };
-  }
   return c.json({
     configured,
     configurationError,
@@ -120,7 +101,6 @@ bankRoutes.get('/', async (c) => {
     positions: positions.results,
     policies: policies.results,
     earnings,
-    cashflow,
   });
 });
 bankRoutes.post('/agents/:id/provision', async (c) => {
@@ -188,8 +168,8 @@ bankRoutes.post('/topups/:id/reconcile', async (c) =>
 );
 bankRoutes.post('/reconcile', async (c) => {
   await rateLimit(c.env, `bank-keeper:${c.get('userId')}`, 6);
-  await bankKeeper(c.env);
-  return c.json({ reconciled: true });
+  await enqueueMaintenance(c.env);
+  return c.json({ queued: true }, 202);
 });
 bankRoutes.put('/funds/:address/strategy', async (c) => {
   const address = z.string().refine(isAddress).parse(c.req.param('address')) as Address;

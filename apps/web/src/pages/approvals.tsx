@@ -3,9 +3,9 @@ import { Check, X, Inbox, ArrowRight, Bot, Clock3, ShieldCheck, Star } from 'luc
 import { money, type Purchase } from '@capora/types';
 import { Button, Badge, Empty, ErrorNotice } from '../components/ui';
 import { ProviderIcon } from '../components/brand';
-import { api, useAction, useDashboard, useCapabilities, latency, time } from '../lib/api';
+import { api, useAction, useApprovals, useCapabilities, latency, time } from '../lib/api';
 export function Approvals() {
-  const { data, error } = useDashboard();
+  const { data, error } = useApprovals();
   return (
     <>
       <div className="page-heading">

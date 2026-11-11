@@ -183,6 +183,77 @@ afterAll(async () => {
 });
 
 describe('Actual Worker, D1, R2, Queues, and MCP integration', () => {
+  it('pages owned purchases without decoding invocation payloads and searches literal wildcards', async () => {
+    const db = await mf.getD1Database('DB');
+    const now = new Date().toISOString();
+    await db.prepare("INSERT OR IGNORE INTO spending_policies(agent_id) VALUES ('agent_sibling')").run();
+    for (let n = 0; n < 28; n++) {
+      const id = `page_${String(n).padStart(2, '0')}${n === 0 ? '%literal' : ''}`;
+      const agent = n === 27 ? 'agent_other' : 'agent_test';
+      await db
+        .prepare(
+          "INSERT INTO quotes(id,agent_id,capability_id,price_cents,input,input_hash,capability_version,created_at,expires_at) VALUES(?,?,'datapulse_headcount',10,'{}','hash',1,?,?)",
+        )
+        .bind(id, agent, now, now)
+        .run();
+      await db
+        .prepare(
+          "INSERT INTO purchases(id,quote_id,agent_id,capability_id,amount_cents,status,payment_mode,budget_day,created_at,updated_at) VALUES(?,?,?,'datapulse_headcount',10,?,'demo',?,?,?)",
+        )
+        .bind(
+          id,
+          id,
+          agent,
+          n === 26 || n === 27 ? 'pending_approval' : 'purchased',
+          now.slice(0, 10),
+          now,
+          now,
+        )
+        .run();
+      // Invalid stored JSON must not be loaded or decoded by list queries.
+      await db
+        .prepare(
+          "INSERT INTO invocations(id,purchase_id,agent_id,capability_id,status,input,result,created_at) VALUES(?,?,?,'datapulse_headcount','completed','not-json','not-json',?)",
+        )
+        .bind(`inv_${id}`, id, agent, now)
+        .run();
+    }
+    type Page = import('../packages/types/src/index').TransactionPage;
+    const first = await request<Page>('/transactions?page=0');
+    const second = await request<Page>('/transactions?page=1');
+    expect(first.status).toBe(200);
+    expect(first.data.purchases).toHaveLength(25);
+    expect(first.data.hasMore).toBe(true);
+    expect(second.data.purchases).toHaveLength(2);
+    expect(second.data.hasMore).toBe(false);
+    const all = [...first.data.purchases, ...second.data.purchases];
+    expect(new Set(all.map((p) => p.id)).size).toBe(27);
+    expect(all.every((p) => p.agentId === 'agent_test')).toBe(true);
+    expect(first.data.stats.totalSpendCents).toBe(260);
+    expect(first.data.completedCount).toBe(26);
+    expect(first.data.approvalCount).toBe(1);
+    expect(first.data.invocations.every((i) => i.result === null && !('input' in i))).toBe(true);
+    const literal = await request<Page>('/transactions?search=%25literal');
+    expect(literal.status).toBe(200);
+    expect(literal.data.purchases.map((p) => p.id)).toEqual(['page_00%literal']);
+    expect((await request<Page>('/transactions?search=_missing')).data.purchases).toEqual([]);
+    expect((await request<Page>('/transactions?status=pending_approval')).data.purchases).toHaveLength(1);
+    const workspace = await request<import('../packages/types/src/index').WorkspaceSummary>('/workspace');
+    expect(workspace.status).toBe(200);
+    expect(workspace.data.approvalCount).toBe(1);
+    expect(workspace.data.agents).toHaveLength(2);
+    expect(workspace.data).not.toHaveProperty('invocations');
+    expect((await request<{ approvals: Purchase[] }>('/approvals')).data.approvals).toHaveLength(1);
+    await db
+      .prepare("UPDATE invocations SET input='{}',result='{\"answer\":42}' WHERE purchase_id='page_01'")
+      .run();
+    expect(
+      (await request<Invocation>('/agents/agent_test/purchases/page_01/invocation')).data.result,
+    ).toEqual({ answer: 42 });
+    expect((await request('/agents/agent_test/purchases/page_27/invocation')).status).toBe(404);
+    expect((await request('/agents/agent_other/purchases/page_27/invocation')).status).toBe(404);
+    expect((await request('/transactions?page=-1')).status).toBe(400);
+  });
   it('syncs registered metadata for discovery, preserves usage, and invalidates changed quotes', async () => {
     const db = await mf.getD1Database('DB');
     const sync = async () => {

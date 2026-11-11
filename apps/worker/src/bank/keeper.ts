@@ -5,20 +5,23 @@ import { transaction, type BankTransaction } from './chain';
 import { reconcileTopUp, type TopUp } from './topups';
 import { resolveEscrow, expireEscrow } from './escrow';
 import type { Env } from '../env';
+import { bankWork } from './work';
 async function safely(action: () => Promise<unknown>) {
   try {
     await action();
-  } catch {
-    /* Durable intents retain safe retry or manual-review status. */
+  } catch (error) {
+    // Never log RPC arguments, account credentials, or nested causes.
+    console.warn(
+      JSON.stringify({
+        event: 'bank_recovery_deferred',
+        name: error instanceof Error ? error.name : 'UnknownError',
+      }),
+    );
   }
 }
 export async function bankKeeper(env: Env) {
   if (env.BANK_ENABLED !== 'true') return;
   configuration(env);
-  await safely(async () => {
-    const { indexBankEvents } = await import('./indexer');
-    return indexBankEvents(env);
-  });
   const pending = await env.DB.prepare(
     "SELECT * FROM bank_transactions WHERE state='pending' AND tx_hash IS NOT NULL ORDER BY updated_at LIMIT 20",
   ).all<BankTransaction>();
@@ -88,18 +91,28 @@ export async function bankKeeper(env: Env) {
       const { runStrategy } = await import('./strategy');
       return runStrategy(env, strategy.fund_address);
     });
-  // Audit recent finalized projections against canonical blocks; never silently accept a reorg.
-  const recent = await env.DB.prepare(
-    "SELECT id,block_number,block_hash FROM bank_transactions WHERE state='confirmed' ORDER BY updated_at DESC LIMIT 20",
-  ).all<{ id: string; block_number: string; block_hash: string }>();
-  for (const tx of recent.results)
-    await safely(async () => {
-      const block = await client.getBlock({ blockNumber: BigInt(tx.block_number) });
-      if (block.hash !== tx.block_hash)
-        await env.DB.prepare(
-          "UPDATE bank_transactions SET state='manual_review',error='Canonical block changed after confirmation. Reconcile on-chain events before recovery.' WHERE id=?",
-        )
-          .bind(tx.id)
-          .run();
-    });
+  // Audit old projections hourly rather than fetching the same 20 blocks on every
+  // five-minute tick. The indexer still checks its canonical cursor on every page.
+  await bankWork(
+    env,
+    'bank:canonical-audit',
+    async () => {
+      const recent = await env.DB.prepare(
+        "SELECT id,block_number,block_hash FROM bank_transactions WHERE state='confirmed' ORDER BY updated_at DESC LIMIT 20",
+      ).all<{ id: string; block_number: string; block_hash: string }>();
+      const blocks = new Map<string, string | null>();
+      for (const tx of recent.results) {
+        if (!blocks.has(tx.block_number))
+          blocks.set(tx.block_number, (await client.getBlock({ blockNumber: BigInt(tx.block_number) })).hash);
+        const canonicalHash = blocks.get(tx.block_number);
+        if (canonicalHash !== tx.block_hash)
+          await env.DB.prepare(
+            "UPDATE bank_transactions SET state='manual_review',error='Canonical block changed after confirmation. Reconcile on-chain events before recovery.' WHERE id=?",
+          )
+            .bind(tx.id)
+            .run();
+      }
+    },
+    60 * 60_000,
+  );
 }

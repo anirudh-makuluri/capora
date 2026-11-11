@@ -10,10 +10,11 @@ import {
 import { configuration, assertChain } from './config';
 import { jsonSafe } from './read';
 import type { Env } from '../env';
-export async function indexBankEvents(env: Env) {
+export async function indexBankEvents(env: Env, pages = 5) {
   // Public Base Sepolia RPC limits each log query to 200 blocks. Catch up in
   // bounded pages so a keeper tick advances faster than the chain without a long job.
-  for (let page = 0; page < 5; page++) if (!(await indexBankEventPage(env))) break;
+  for (let page = 0; page < pages; page++) if (!(await indexBankEventPage(env))) return false;
+  return true;
 }
 async function indexBankEventPage(env: Env) {
   const cfg = configuration(env),

@@ -2,16 +2,25 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Search, Download, ArrowUpRight, CreditCard, ArrowRight, ShieldCheck } from 'lucide-react';
 import { money, type Purchase } from '@capora/types';
-import { Button, Badge, Dialog, ErrorNotice, Empty, Status } from '../components/ui';
+import { Button, Dialog, ErrorNotice, Empty, Status } from '../components/ui';
 import { PurchaseActions } from '../components/purchase-actions';
-import { api, useAction, useDashboard, time, latency } from '../lib/api';
+import { api, useAction, useTransactions, time, latency } from '../lib/api';
 import { Stat } from './overview';
 export function Transactions() {
-  const { data, error } = useDashboard();
-  const [query, setQuery] = useState('');
-  const [status, setStatus] = useState('');
-  const [selected, setSelected] = useState<Purchase>();
   const [params, setParams] = useSearchParams();
+  const [query, setQuery] = useState(params.get('payment') ?? params.get('cancel') ?? '');
+  const [search, setSearch] = useState(query);
+  const [page, setPage] = useState(0);
+  const [status, setStatus] = useState('');
+  const { data, error, isFetching, refetch } = useTransactions(page, search, status);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearch(query);
+      setPage(0);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [query]);
+  const [selected, setSelected] = useState<Purchase>();
   const handled = useRef(false);
   const callback = useAction((purchase: Purchase) =>
     api(
@@ -28,14 +37,7 @@ export function Transactions() {
       callback.mutate(purchase, { onSuccess: () => setParams({}) });
     }
   }, [data, params, callback, setParams]);
-  const rows =
-    data?.purchases.filter(
-      (p) =>
-        (!status || p.status === status) &&
-        `${p.capabilityName} ${p.provider} ${p.agentName} ${p.id}`
-          .toLowerCase()
-          .includes(query.toLowerCase()),
-    ) ?? [];
+  const rows = data?.purchases ?? [];
   const current = data?.purchases.find((p) => p.id === selected?.id) ?? selected;
   const exportCsv = () => {
     const csv = [
@@ -86,7 +88,7 @@ export function Transactions() {
           <p>See what your agents bought, why they needed it, and what it returned.</p>
         </div>
         <Button variant="secondary" onClick={exportCsv} disabled={!rows.length}>
-          <Download size={16} /> Export CSV
+          <Download size={16} /> Export this page
         </Button>
       </div>
       <div className="stats-grid transaction-stats">
@@ -105,8 +107,8 @@ export function Transactions() {
         <Stat
           icon={<ArrowUpRight size={18} />}
           label="Completed purchases"
-          value={String(data?.purchases.filter((p) => p.status === 'purchased').length ?? 0)}
-          note={`${data?.approvals.length ?? 0} awaiting your approval`}
+          value={String(data?.completedCount ?? 0)}
+          note={`${data?.approvalCount ?? 0} awaiting your approval`}
         />
       </div>
       <ErrorNotice error={error ?? callback.error} />
@@ -124,7 +126,10 @@ export function Transactions() {
           <select
             aria-label="Filter transaction status"
             value={status}
-            onChange={(e) => setStatus(e.target.value)}
+            onChange={(e) => {
+              setStatus(e.target.value);
+              setPage(0);
+            }}
           >
             <option value="">All statuses</option>
             {['purchased', 'pending_approval', 'payment_pending', 'rejected', 'failed', 'refunded'].map(
@@ -135,10 +140,9 @@ export function Transactions() {
               ),
             )}
           </select>
-          <Badge tone="green">
-            <span className="status-dot" />
-            Live
-          </Badge>
+          <Button variant="secondary" disabled={isFetching} onClick={() => void refetch()}>
+            Refresh
+          </Button>
         </div>
         <div className="table-scroll">
           <table className="transactions-table">
@@ -206,6 +210,19 @@ export function Transactions() {
               })}
             </tbody>
           </table>
+        </div>
+        <div className="action-row">
+          <Button variant="secondary" disabled={page === 0 || isFetching} onClick={() => setPage(page - 1)}>
+            Previous
+          </Button>
+          <span>Page {page + 1}</span>
+          <Button
+            variant="secondary"
+            disabled={!data?.hasMore || isFetching}
+            onClick={() => setPage(page + 1)}
+          >
+            Next
+          </Button>
         </div>
         {!rows.length && data && (
           <Empty

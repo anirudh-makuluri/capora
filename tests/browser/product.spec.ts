@@ -66,6 +66,54 @@ test('marketplace discovers, filters, and opens machine-readable details', async
   }
   expect(errors).toEqual([]);
 });
+
+test('transaction pagination and search fetch bounded pages without the full dashboard', async ({ page }) => {
+  const requested: string[] = [];
+  page.on('request', (request) => {
+    requested.push(new URL(request.url()).pathname);
+  });
+  await page.route('**/api/transactions?*', (route) => {
+    const params = new URL(route.request().url()).searchParams;
+    const second = params.get('page') === '1';
+    const search = params.get('search');
+    return route.fulfill({
+      json: {
+        purchases: [
+          {
+            id: search ? 'match' : second ? 'older' : 'newer',
+            quoteId: 'quote',
+            agentId: 'agent',
+            agentName: 'Research agent',
+            capabilityName: search ? 'Search result' : second ? 'Older purchase' : 'Newest purchase',
+            provider: 'Example provider',
+            amountCents: 10,
+            status: 'purchased',
+            paymentMode: 'demo',
+            createdAt: '2026-11-09T12:00:00Z',
+          },
+        ],
+        invocations: [],
+        hasMore: !second && !search,
+        stats: { totalSpendCents: 260, spentTodayCents: 10 },
+        completedCount: 26,
+        approvalCount: 0,
+      },
+    });
+  });
+  await page.goto('/transactions');
+  await expect(page.locator('.table-capability').filter({ hasText: 'Newest purchase' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Previous', exact: true })).toBeDisabled();
+  await page.getByRole('button', { name: 'Next', exact: true }).click();
+  await expect(page.locator('.table-capability').filter({ hasText: 'Older purchase' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Next', exact: true })).toBeDisabled();
+  await page.getByRole('textbox', { name: 'Search transactions' }).fill('literal%');
+  await expect(page.locator('.table-capability').filter({ hasText: 'Search result' })).toBeVisible();
+  await expect(page.getByText('Page 1', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Export this page' })).toBeEnabled();
+  expect(requested).not.toContain('/api/dashboard');
+  expect(requested).toContain('/api/workspace');
+  await page.screenshot({ path: '.local/screenshots/transactions-pagination.png', fullPage: true });
+});
 test('purchased computed tools deliver usable results with approval and queued execution', async ({
   page,
 }) => {

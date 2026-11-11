@@ -13,7 +13,7 @@ import {
   ArrowUpRight,
 } from 'lucide-react';
 import { money, type Capability, type Quote, type Purchase, type Invocation, type Job } from '@capora/types';
-import { api, useDashboard, useAction, latency } from '../lib/api';
+import { api, useWorkspace, usePurchase, useAction, latency } from '../lib/api';
 import { Button, Badge, CodeBlock, ErrorNotice, Status } from '../components/ui';
 import { ProviderIcon } from '../components/brand';
 import { ApprovalCard } from './approvals';
@@ -24,7 +24,7 @@ interface Step {
   detail: string;
 }
 export function Demo() {
-  const { data } = useDashboard();
+  const { data } = useWorkspace();
   const [steps, setSteps] = useState<Step[]>([]);
   const [candidates, setCandidates] = useState<Capability[]>([]);
   const [research, setResearch] = useState<Invocation>();
@@ -121,7 +121,7 @@ export function Demo() {
     });
     return purchase;
   });
-  const security = data?.purchases.find((p) => p.id === securityPurchase?.id) ?? securityPurchase;
+  const { data: security } = usePurchase(securityPurchase);
   const executeSecurity = useAction(async (purchase: Purchase) => {
     const input = (
       await api<{ input: Record<string, unknown> }>(
