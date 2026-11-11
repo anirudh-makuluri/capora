@@ -7,7 +7,7 @@ permissions:
   contents: read
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -21,19 +21,9 @@ jobs:
       - run: pnpm lint
       - run: pnpm test
       - run: pnpm setup:local
-      - name: Bound browser dependency installation
-        run: |
-          # The hosted runner's Azure mirror can stall for minutes per package.
-          # Retain its configured Ubuntu archive/security fallbacks.
-          if [ -f /etc/apt/apt-mirrors.txt ]; then
-            sudo sed -i '/azure\.archive\.ubuntu\.com/d' /etc/apt/apt-mirrors.txt
-          fi
-          sudo tee /etc/apt/apt.conf.d/80-capora-ci-timeouts >/dev/null <<'EOF'
-          Acquire::Retries "1";
-          Acquire::http::Timeout "15";
-          Acquire::https::Timeout "15";
-          EOF
-      - run: pnpm exec playwright install --with-deps chromium
+      # This hosted image includes Chromium's runtime libraries. Avoid an apt
+      # refresh for extra font packages; actual browser launches remain required.
+      - run: pnpm exec playwright install chromium
         timeout-minutes: 5
       - run: pnpm test:browser
       - uses: actions/upload-artifact@v4
