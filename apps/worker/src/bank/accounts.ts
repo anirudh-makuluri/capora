@@ -20,6 +20,10 @@ export async function accountIntent(
   kind: 'agent' | 'provider',
   entityId: string,
 ): Promise<BankAccount> {
+  const existing = await env.DB.prepare('SELECT * FROM bank_accounts WHERE id=?')
+    .bind(`${kind}:${entityId}`)
+    .first<BankAccount>();
+  if (existing) return existing;
   const table = kind === 'agent' ? 'agents' : 'providers';
   const owner = await env.DB.prepare(`SELECT user_id FROM ${table} WHERE id=?`)
     .bind(entityId)
@@ -82,10 +86,14 @@ export async function ensureAccount(
     .run();
   return { ...account, address, state: 'active' };
 }
-export async function balance(env: Env, account: BankAccount) {
+export async function balance(
+  env: Env,
+  account: BankAccount,
+  sharedClient?: Awaited<ReturnType<typeof assertChain>>,
+) {
   if (!account.address) return { ...account, balance: null, gas: null };
   const cfg = configuration(env),
-    client = await assertChain(env);
+    client = sharedClient ?? (await assertChain(env));
   const [token, gas, collateral] = await Promise.all([
     client.readContract({
       address: cfg.token,

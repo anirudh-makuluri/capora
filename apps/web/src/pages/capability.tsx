@@ -16,7 +16,7 @@ import { money, type Capability, type Quote, type Purchase } from '@capora/types
 import { Button, Badge, CodeBlock, ErrorNotice, Field, Skeleton, Status } from '../components/ui';
 import { ProviderIcon } from '../components/brand';
 import { PurchaseActions } from '../components/purchase-actions';
-import { api, useDashboard, useAction, exampleInput, latency } from '../lib/api';
+import { api, useWorkspace, usePurchase, useAction, exampleInput, latency } from '../lib/api';
 import { typeLabel } from './marketplace';
 
 export function CapabilityDetail() {
@@ -154,7 +154,7 @@ export function CapabilityDetail() {
   );
 }
 function AcquirePanel({ capability }: { capability: Capability }) {
-  const { data } = useDashboard();
+  const { data } = useWorkspace();
   const [agentId, setAgentId] = useState('agent_research');
   const [input, setInput] = useState(JSON.stringify(exampleInput(capability), null, 2));
   const [reason, setReason] = useState(`I need ${capability.name} to complete the user's task.`);
@@ -163,7 +163,7 @@ function AcquirePanel({ capability }: { capability: Capability }) {
   const [parseError, setParseError] = useState<unknown>();
   const activeAgents = data?.agents.filter((a) => a.status === 'active') ?? [];
   const selectedAgent = activeAgents.find((a) => a.id === agentId) ?? activeAgents[0];
-  const currentPurchase = data?.purchases.find((p) => p.id === purchase?.id) ?? purchase;
+  const { data: currentPurchase } = usePurchase(purchase);
   const quoteAction = useAction(async () => {
     setParseError(undefined);
     let parsed: Record<string, unknown>;

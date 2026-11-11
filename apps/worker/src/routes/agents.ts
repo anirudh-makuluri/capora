@@ -119,6 +119,13 @@ agentRoutes.get('/:id/purchases/:purchaseId/input', async (c) => {
     .get();
   return c.json({ input: quote?.input });
 });
+agentRoutes.get('/:id/purchases/:purchaseId/invocation', async (c) => {
+  await getPurchase(c.env, c.req.param('purchaseId'), c.req.param('id'));
+  const row = await c.env.DB.prepare('SELECT id FROM invocations WHERE purchase_id=? AND agent_id=?')
+    .bind(c.req.param('purchaseId'), c.req.param('id'))
+    .first<{ id: string }>();
+  return c.json(row ? await getInvocation(c.env, row.id, c.req.param('id')) : null);
+});
 agentRoutes.post('/:id/purchases/:purchaseId/reconcile', async (c) =>
   c.json(await settlePayment(c.env, c.req.param('purchaseId'), c.req.param('id'))),
 );

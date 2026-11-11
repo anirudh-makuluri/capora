@@ -18,7 +18,7 @@ test('top-ups target the chosen agent and transfers choose named wallets in plac
     agents.push(await response.json());
   }
   const address = `0x${'2'.repeat(40)}`;
-  await page.route('**/api/bank', (route) =>
+  await page.route('**/api/bank?view=*', (route) =>
     route.fulfill({
       json: {
         configured: true,
@@ -211,7 +211,7 @@ test('Bank separates provider wallets and gives links, tabs and receipts room on
       data: { name: 'SmartDeploy', description: 'Provider wallet layout fixture' },
     })
   ).json();
-  await page.route('**/api/bank', (route) =>
+  await page.route('**/api/bank?view=*', (route) =>
     route.fulfill({
       json: {
         configured: true,

@@ -1,5 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { Dashboard, Capability, Session } from '@capora/types';
+import type {
+  Dashboard,
+  Capability,
+  Session,
+  WorkspaceSummary,
+  Purchase,
+  TransactionPage,
+} from '@capora/types';
 export class ApiError extends Error {
   constructor(
     public code: string,
@@ -59,7 +66,44 @@ export const useDashboard = () =>
     queryFn: () => api<Dashboard>('/dashboard'),
     staleTime: 15_000,
     retry: false,
-    refetchInterval: (query) => (query.state.status === 'error' ? false : 30_000),
+  });
+export const useWorkspace = () =>
+  useQuery({
+    queryKey: ['workspace'],
+    queryFn: () => api<WorkspaceSummary>('/workspace'),
+    staleTime: 30_000,
+    retry: false,
+    refetchInterval: (q) => (q.state.status === 'error' ? false : 60_000),
+  });
+export const useApprovals = () =>
+  useQuery({
+    queryKey: ['approvals'],
+    queryFn: () => api<{ approvals: Purchase[] }>('/approvals'),
+    staleTime: 15_000,
+    retry: false,
+    refetchInterval: (q) => (q.state.status === 'error' ? false : 30_000),
+  });
+export const useTransactions = (page: number, search: string, status: string) =>
+  useQuery({
+    queryKey: ['transactions', page, search, status],
+    queryFn: () =>
+      api<TransactionPage>(`/transactions?${new URLSearchParams({ page: String(page), search, status })}`),
+    staleTime: 15_000,
+    retry: false,
+  });
+export const usePurchase = (purchase: Purchase | undefined) =>
+  useQuery({
+    queryKey: ['purchase', purchase?.id],
+    enabled: Boolean(purchase),
+    queryFn: () => api<Purchase>(`/agents/${purchase!.agentId}/purchases/${purchase!.id}`),
+    initialData: purchase,
+    staleTime: 1000,
+    retry: false,
+    refetchInterval: (q) =>
+      q.state.status !== 'error' &&
+      ['pending_approval', 'approved', 'payment_pending'].includes(q.state.data?.status ?? '')
+        ? 5000
+        : false,
   });
 export const useCapabilities = (search = '') =>
   useQuery({
@@ -73,6 +117,11 @@ export function useAction<T, V>(fn: (variables: V) => Promise<T>) {
     onSuccess: async () => {
       await Promise.all([
         client.invalidateQueries({ queryKey: ['dashboard'] }),
+        client.invalidateQueries({ queryKey: ['workspace'] }),
+        client.invalidateQueries({ queryKey: ['approvals'] }),
+        client.invalidateQueries({ queryKey: ['transactions'] }),
+        client.invalidateQueries({ queryKey: ['purchase'] }),
+        client.invalidateQueries({ queryKey: ['invocation-by-purchase'] }),
         client.invalidateQueries({ queryKey: ['capabilities'] }),
         client.invalidateQueries({ queryKey: ['provider-capabilities'] }),
         client.invalidateQueries({ queryKey: ['admin'] }),

@@ -18,7 +18,7 @@ import {
 import { Mark } from './brand';
 import { Button, Dialog, ErrorNotice, Skeleton } from './ui';
 import { ConnectPrompt } from './connect-prompt';
-import { api, ApiError, useDashboard, useSession } from '../lib/api';
+import { api, ApiError, useWorkspace, useSession } from '../lib/api';
 import { useQueryClient } from '@tanstack/react-query';
 
 export function AppLayout() {
@@ -44,7 +44,7 @@ export function AppLayout() {
 }
 function WorkspaceLayout() {
   const { data: session } = useSession();
-  const { data } = useDashboard();
+  const { data } = useWorkspace();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [connect, setConnect] = useState(false);
   const client = useQueryClient();
@@ -55,7 +55,7 @@ function WorkspaceLayout() {
     { to: '/agents', label: 'My agents', icon: Bot },
     { to: '/bank', label: 'Capora Bank', icon: CreditCard },
     { to: '/transactions', label: 'Transactions', icon: CreditCard },
-    { to: '/approvals', label: 'Approvals', icon: Inbox, count: data?.approvals.length },
+    { to: '/approvals', label: 'Approvals', icon: Inbox, count: data?.approvalCount },
   ];
   const pageName =
     [

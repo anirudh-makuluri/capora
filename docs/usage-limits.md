@@ -37,7 +37,13 @@ To resume, change `blocked` back to `0`. This does not clear byte/operation rese
 
 ## Dashboard reads on Workers Free
 
-The dashboard and Bank summary/detail queries refresh every 30 seconds while visible, reuse results for 15 seconds, and stop periodic polling after an error. Mutations invalidate their relevant queries immediately, and active purchase/invocation status checks retain their shorter intervals. This reduces idle read traffic; it is not an account-wide quota guarantee.
+The sidebar uses a small workspace summary every 60 seconds while visible. The full dashboard and transaction history load on demand, focus, or mutation rather than on an interval. Transactions are paginated (25 purchases per page), with server-side search and whole-workspace spending totals. CSV export covers the displayed page. Invocation input/result JSON is loaded only when opening an owned receipt.
+
+Bank summary queries request only the active tab's data; inactive tabs do not fetch balances, earnings, transaction history, or entities. Bank and approval queries refresh every 30 seconds while visible, reuse results for 15 seconds, and stop periodic polling after an error. Active purchase/invocation checks retain shorter intervals. This reduces idle read traffic; it is not an account-wide quota guarantee.
+
+Maintenance runs on the existing invocation queue, one message per batch. Every five-minute cron enqueues cleanup, Bank recovery, and at most five sequential 200-block indexing pages. The durable index cursor and six-block canonical overlap are preserved. D1 indexes cover numeric event block ranges, expiry cleanup, status recovery, and owner/history lookups. Duplicate maintenance consumers are excluded by 20-minute leases; exceptions release leases immediately, while terminated consumers recover after expiry. Historical confirmed-transaction auditing runs hourly; the indexer checks its canonical cursor on every page.
+
+`POST /api/bank/reconcile` returns HTTP 202 with `{ "queued": true }`. Completion is reflected in subsequent Bank/status reads. Structured `maintenance_completed` logs show the task, whether its lease was acquired, and wall duration. Monitor queue backlog/retries alongside D1 rows read and Worker CPU: the queue uses the same existing quota, and this change does not upgrade the plan or guarantee that all financial HTTP operations fit Workers Free CPU limits.
 
 On November 8, 2026, the hosted account exhausted D1's Free daily row-read allowance. Cloudflare rejected reads with error 7500 and reported that reads could resume after the midnight UTC reset. A healthy `/api/health` response does not prove database-backed routes are available. Avoid leaving older dashboard builds polling every two seconds; reload them after this release. The hosting plan remains Free.
 

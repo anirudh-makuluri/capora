@@ -3,17 +3,16 @@ import { useQuery } from '@tanstack/react-query';
 import { ExternalLink, Play, RefreshCw, Clock3 } from 'lucide-react';
 import type { Purchase, Invocation, Job, JsonInput } from '@capora/types';
 import { Button, ErrorNotice, CodeBlock, Badge } from './ui';
-import { api, useAction, useDashboard } from '../lib/api';
+import { api, useAction } from '../lib/api';
 
 export function PurchaseActions({ purchase }: { purchase: Purchase }) {
   const [result, setResult] = useState<Invocation>();
-  const { data } = useDashboard();
-  const existing = data?.invocations.find((i) => i.purchaseId === purchase.id);
   const detail = useQuery({
-    queryKey: ['invocation', existing?.id],
-    queryFn: () => api<Invocation>(`/agents/${purchase.agentId}/invocations/${existing!.id}`),
-    enabled: Boolean(existing),
-    refetchInterval: existing && ['queued', 'running'].includes(existing.status) ? 1000 : false,
+    queryKey: ['invocation-by-purchase', purchase.id],
+    queryFn: () => api<Invocation | null>(`/agents/${purchase.agentId}/purchases/${purchase.id}/invocation`),
+    retry: false,
+    refetchInterval: (q) =>
+      q.state.status !== 'error' && ['queued', 'running'].includes(q.state.data?.status ?? '') ? 2000 : false,
   });
   const execute = useAction(async () => {
     const { input } = await api<{ input: JsonInput }>(
@@ -40,7 +39,11 @@ export function PurchaseActions({ purchase }: { purchase: Purchase }) {
     queryKey: ['job', current?.jobId],
     queryFn: () => api<Job>(`/agents/${purchase.agentId}/jobs/${current!.jobId}`),
     enabled: Boolean(current?.jobId),
-    refetchInterval: (q) => (['completed', 'failed'].includes(q.state.data?.status ?? '') ? false : 1000),
+    retry: false,
+    refetchInterval: (q) =>
+      q.state.status === 'error' || ['completed', 'failed'].includes(q.state.data?.status ?? '')
+        ? false
+        : 2000,
   });
   return (
     <div className="purchase-actions">

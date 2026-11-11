@@ -931,26 +931,48 @@ describe('Bank vertical slices on a real isolated local EVM; PayPal is an explic
     expect(p.status).toBe('purchased');
     await advance(3700);
     await write(deployment.escrow, PurchaseEscrowAbi, 'refund', [chainKey(`purchase:${p.id}`)]);
-    await api('/bank/reconcile', {});
-    expect((await api<Purchase>(`/agents/${agentA}/purchases/${p.id}`)).status).toBe('refunded');
+    expect(await api('/bank/reconcile', {})).toEqual({ queued: true });
+    await expect
+      .poll(async () => (await api<Purchase>(`/agents/${agentA}/purchases/${p.id}`)).status, {
+        timeout: 10000,
+      })
+      .toBe('refunded');
     const db = await mf.getD1Database('DB'),
       count = await db
         .prepare("SELECT COUNT(*) AS n FROM bank_events WHERE source='chain'")
         .first<{ n: number }>();
     expect(count!.n).toBeGreaterThan(0);
+    await advance(1);
+    const target = await chain.getBlockNumber({ cacheTime: 0 });
     await api('/bank/reconcile', {});
+    await expect
+      .poll(
+        async () =>
+          BigInt(
+            (await db
+              .prepare("SELECT block_number FROM bank_cursors WHERE source='bank:84532'")
+              .first<string>('block_number')) ?? '0',
+          ),
+        { timeout: 10000 },
+      )
+      .toBeGreaterThanOrEqual(target);
     expect(
       (await db.prepare("SELECT COUNT(*) AS n FROM bank_events WHERE source='chain'").first<{ n: number }>())!
         .n,
     ).toBe(count!.n);
     const overview = await api<{
       configured: boolean;
-      cashflow: { receivedUnits: string; sentUnits: string };
       accounts: { balance: string | null }[];
     }>('/bank');
     expect(overview.configured).toBe(true);
-    expect(BigInt(overview.cashflow.receivedUnits)).toBeGreaterThan(0n);
-    expect(BigInt(overview.cashflow.sentUnits)).toBeGreaterThan(0n);
+    // Transfer evidence stays indexed; list views no longer parse every event.
+    const transfers = await db
+      .prepare(
+        "SELECT data FROM bank_events WHERE source='chain' AND json_extract(data,'$.eventName')='Transfer'",
+      )
+      .all<{ data: string }>();
+    expect(transfers.results.length).toBeGreaterThan(0);
+    expect(overview).not.toHaveProperty('cashflow');
     expect(overview.accounts.filter((a) => a.balance !== null).length).toBeGreaterThanOrEqual(3);
   }, 30000);
 });

@@ -6,7 +6,6 @@ import { DomainError, searchSchema } from '@capora/types';
 import { handleMcp } from '@capora/mcp';
 import { MAX_PAYLOAD_BYTES } from '@capora/config';
 import { id } from './lib/crypto';
-import { cleanupAuth } from './lib/auth';
 import { authenticateAgent, requireHuman, originAllowed } from './services/auth';
 import { searchCapabilities, getCapability } from './services/catalog';
 import {
@@ -16,16 +15,10 @@ import {
   getPurchase,
   settlePayment,
   resolveApproval,
-  expireApprovals,
 } from './services/commerce';
-import {
-  invokeCapability,
-  getJob,
-  executeInvocation,
-  recoverJobs,
-  type JobMessage,
-} from './services/execution';
-import { getDashboard } from './services/dashboard';
+import { invokeCapability, getJob, executeInvocation, type JobMessage } from './services/execution';
+import { getDashboard, getWorkspace, getApprovals, getTransactionPage } from './services/dashboard';
+import { enqueueMaintenance, runMaintenance, type MaintenanceMessage } from './services/maintenance';
 import { getStorageUsage } from './services/storage';
 import { rateCapability } from './services/reviews';
 import { demoProviders } from './providers/demo';
@@ -37,7 +30,6 @@ import { adminRoutes } from './routes/admin';
 import { publicConnectRoutes, connectRoutes } from './routes/connect';
 import type { AppEnv, Env } from './env';
 import { bankRoutes, publicBankRoutes } from './routes/bank';
-import { bankKeeper } from './bank/keeper';
 import { bankRpcFailure } from './bank/config';
 
 export const app = new Hono<AppEnv>();
@@ -122,6 +114,29 @@ app.use('/api/*', async (c, next) => {
   await next();
 });
 app.get('/api/dashboard', async (c) => c.json(await getDashboard(c.env, c.get('userId'))));
+app.get('/api/workspace', async (c) => c.json(await getWorkspace(c.env, c.get('userId'))));
+app.get('/api/approvals', async (c) => c.json(await getApprovals(c.env, c.get('userId'))));
+app.get('/api/transactions', async (c) => {
+  const q = z
+    .object({
+      page: z.coerce.number().int().min(0).max(100000).default(0),
+      search: z.string().max(200).default(''),
+      status: z
+        .enum([
+          '',
+          'purchased',
+          'pending_approval',
+          'approved',
+          'payment_pending',
+          'rejected',
+          'failed',
+          'refunded',
+        ])
+        .default(''),
+    })
+    .parse(c.req.query());
+  return c.json(await getTransactionPage(c.env, c.get('userId'), q.page, q.search, q.status));
+});
 app.get('/api/storage/usage', async (c) => c.json(await getStorageUsage(c.env)));
 app.route('/api/agents', agentRoutes);
 app.route('/api/connect', connectRoutes);
@@ -169,9 +184,14 @@ app.all('*', (c) => c.env.ASSETS.fetch(c.req.raw));
 
 export default {
   fetch: app.fetch,
-  async queue(batch: MessageBatch<JobMessage>, env: Env) {
+  async queue(batch: MessageBatch<JobMessage | MaintenanceMessage>, env: Env) {
     for (const message of batch.messages) {
       try {
+        if ('maintenance' in message.body) {
+          await runMaintenance(env, message.body);
+          message.ack();
+          continue;
+        }
         await executeInvocation(env, message.body.invocationId);
         const invocation = await env.DB.prepare('SELECT status FROM invocations WHERE id=?')
           .bind(message.body.invocationId)
@@ -184,6 +204,6 @@ export default {
     }
   },
   async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext) {
-    ctx.waitUntil(Promise.all([expireApprovals(env), recoverJobs(env), cleanupAuth(env), bankKeeper(env)]));
+    ctx.waitUntil(enqueueMaintenance(env));
   },
-} satisfies ExportedHandler<Env, JobMessage>;
+} satisfies ExportedHandler<Env, JobMessage | MaintenanceMessage>;
